@@ -5,8 +5,8 @@ from upload import main as upload_main
 from view import main as view_main
 from visualize import main as visualize_main
 
-# Set up the Streamlit app
-st.set_page_config(page_title="Reagn Ag App", layout="wide")
+# Set up the Streamlit app with favicon
+st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/logo.png")
 
 # Sidebar navigation with logo
 st.sidebar.image("assets/logo.png", use_column_width=False)
