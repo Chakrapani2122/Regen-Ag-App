@@ -21,7 +21,7 @@ if page == "Home":
     # Add logo and title in the same row
     col1, col2 = st.columns([1, 12])
     with col1:
-        st.image("assets/logo.png", use_column_width=True)
+        st.image("assets/logo.png")
     with col2:
         st.title("KSU: Regenerative Agriculture")
     st.write("## 🌾 Welcome to KSURA")
