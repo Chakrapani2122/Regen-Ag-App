@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/logo.png")
 
 # Sidebar navigation with logo
-st.sidebar.image("assets/logo.png", use_column_width=False)
+st.sidebar.image("assets/logo.png", use_container_width=True)
 page = st.sidebar.radio("", ["Home", "View Data", "Upload Data", "Visualize", "About Us", "Contact Us"])
 
 # Page routing
