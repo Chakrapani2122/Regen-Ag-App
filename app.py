@@ -1,9 +1,13 @@
 import streamlit as st
+import warnings
 from about import main as about_main
 from contact import main as contact_main
 from upload import main as upload_main
 from view import main as view_main
 from visualize import main as visualize_main
+
+# Suppress deprecation warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Set up the Streamlit app with favicon
 st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/logo.png")
