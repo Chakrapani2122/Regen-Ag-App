@@ -20,8 +20,40 @@ if page == "Home":
         st.image("assets/logo.png")
     with col2:
         st.title("KSU: Regenerative Agriculture")
-    st.write("Welcome to the Home Page!")
-    st.write("Use the sidebar to navigate to different sections of the app.")
+    st.markdown("""## 🌾 Welcome to KSURA
+
+At **Kansas State University Regenerative Agriculture (KSURA)**, we're building a more sustainable future for farming in Kansas and beyond. 🌍 We're proud to collaborate with farmers, researchers, policymakers, and consumers to promote practices that restore soil health, boost biodiversity, and strengthen ecosystem services. 🌱
+
+## 🚜 What We Do
+
+Our team is dedicated to advancing **regenerative agriculture** — a transformative approach to farming that improves soil, increases resilience, and enhances food systems. Through cutting-edge research, education, and partnerships, we're creating climate-smart, profitable solutions for today’s challenges.
+
+## 🌿 Our Principles
+
+We follow six key principles of regenerative agriculture:
+- 🌾 Maximize diversity
+- 🚜 Reduce tillage
+- 🍀 Keep the soil covered
+- 🌱 Maintain living roots
+- 🐄 Integrate livestock
+- 🌎 Tailor to local ecosystems
+
+These principles help **restore soil health, sequester carbon, and build resilient farms** that thrive with nature, not against it. 🌻
+
+## 🤝 Get Involved
+
+Join us through the **Kansas Soil Health Network (KSHN)**! 🌾  
+We're helping farmers adopt proven soil-friendly practices with support from partners like USDA, Kansas Corn Commission, and The Nature Conservancy.
+
+- 🔬 On-farm trials & research
+- 🌱 Demonstration farms
+- 💰 Market opportunities for nutrient-rich crops
+
+---
+
+**Together, let’s grow a more regenerative future. 🌾💚**
+    
+    """)
 elif page == "About Us":
     about_main()
 elif page == "Contact Us":
