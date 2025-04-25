@@ -25,7 +25,7 @@ if page == "Home":
     with col2:
         st.title("KSU: Regenerative Agriculture")
     st.write("## 🌾 Welcome to KSURA")
-    st.image("assets/team.png", use_column_width=True)
+    st.image("assets/team.png", use_container_width=True)
     st.markdown("""At **Kansas State University Regenerative Agriculture (KSURA)**, we're building a more sustainable future for farming in Kansas and beyond. 🌍 We're proud to collaborate with farmers, researchers, policymakers, and consumers to promote practices that restore soil health, boost biodiversity, and strengthen ecosystem services. 🌱
 
 ## 🚜 What We Do
