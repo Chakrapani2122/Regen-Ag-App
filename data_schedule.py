@@ -1,14 +1,11 @@
 import streamlit as st
+import pandas as pd
 
 def main():
     st.title("Data Schedule")
-    st.write("""
-    This page will help you plan, track, and visualize your data collection and upload schedule for the Regen-Ag-Data project.
-    
-    - 📅 **Schedule upcoming data uploads**
-    - ⏰ **Track deadlines and reminders**
-    - 📝 **View past and future data events**
-    
-    *(Feature roadmap: calendar integration, notifications, and more!)*
-    """)
-    st.info("This is a placeholder for the Data Schedule page. Please contact the admin to enable scheduling features.")
+
+    try:
+        df = pd.read_excel("assets/Data_Schedule.xlsx", sheet_name="Schedule")
+        st.dataframe(df, height=600)
+    except Exception as e:
+        st.error(f"Could not load Data_Schedule.xlsx: {e}")
