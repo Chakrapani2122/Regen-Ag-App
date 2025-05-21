@@ -5,7 +5,7 @@ from github import Github
 from io import StringIO, BytesIO
 
 def main():
-    st.title("Upload the Data here")
+    st.title("Upload the Data")
     st.write("*Access only to team members.*")
 
     # Step 1: Ask for GitHub security token
@@ -21,7 +21,7 @@ def main():
         repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
         st.success(f"Token validated successfully!")
     except Exception as e:
-        st.error(f"Invalid token or repository access issue: {e}")
+        st.error(f"Invalid token or access issue: {e}")
         return
 
     # Step 3: File upload
@@ -53,7 +53,7 @@ def main():
                     st.write(df)
 
         # Step 4.2: Display column names and data types in a table
-        with st.expander("Column Names and Data Types"):
+        with st.expander("Data Types"):
             if selected_file:
                 if selected_file.name.endswith(("xls", "xlsx")) and sheet_name:
                     df = excel_data.parse(sheet_name)
