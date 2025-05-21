@@ -176,9 +176,20 @@ def main():
                     try:
                         xml_file = repo.get_contents(xml_path)
                         xml_content = xml_file.decoded_content.decode("utf-8")
+                        sha = xml_file.sha  # Always get sha if file exists
                         if not xml_content.strip():
+                            # If file is empty, initialize with root and update with sha
                             xml_content = "<Images></Images>"
-                        sha = xml_file.sha  # Retrieve the sha of the existing file
+                            repo.update_file(
+                                xml_path,
+                                "Initialize visualizations.xml",
+                                xml_content,
+                                sha=sha
+                            )
+                            # Re-fetch to get new sha after update
+                            xml_file = repo.get_contents(xml_path)
+                            xml_content = xml_file.decoded_content.decode("utf-8")
+                            sha = xml_file.sha
                     except Exception:
                         xml_content = "<Images></Images>"
                         sha = None  # No sha since the file does not exist
@@ -188,12 +199,10 @@ def main():
                     ET.SubElement(new_image, "Name").text = f"{visualization_name}.png"
                     ET.SubElement(new_image, "Path").text = visualization_path
                     ET.SubElement(new_image, "Description").text = visualization_description
-
                     creation_date = datetime.now().strftime("%Y-%m-%d")
                     ET.SubElement(new_image, "Date").text = creation_date
 
                     updated_xml_content = ET.tostring(root, encoding="unicode")
-                    # Handle the case where the XML file does not exist
                     if sha:
                         repo.update_file(
                             xml_path,

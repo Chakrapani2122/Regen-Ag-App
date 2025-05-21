@@ -72,13 +72,13 @@ def main():
                     col1, col2, col3, col4 = st.columns(4)
                     for i, (col_name, col_type) in enumerate(col_data):
                         if i % 4 == 0:
-                            col1.write(f"**{col_name}** : \n{col_type}")
+                            col1.write(f"{col_name} : \n{col_type}")
                         elif i % 4 == 1:
-                            col2.write(f"**{col_name}** : \n{col_type}")
+                            col2.write(f"{col_name} : \n{col_type}")
                         elif i % 4 == 2:
-                            col3.write(f"**{col_name}** : \n{col_type}")
+                            col3.write(f"{col_name} : \n{col_type}")
                         elif i % 4 == 3:
-                            col4.write(f"**{col_name}** : \n{col_type}")
+                            col4.write(f"{col_name} : \n{col_type}")
 
         # Step 5: List folders in the Regen-Ag-Data repository
         try:

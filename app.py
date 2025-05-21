@@ -5,6 +5,7 @@ from contact import main as contact_main
 from upload import main as upload_main
 from view import main as view_main
 from visualize import main as visualize_main
+import display_visualizations
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -14,10 +15,21 @@ st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/l
 
 # Sidebar navigation with logo
 st.sidebar.image("assets/logo.png", width=80, caption=None)
-page = st.sidebar.radio("", ["Home", "View Data", "Upload Data", "Visualize", "About Us", "Contact Us"])
+PAGES = {
+    "Home": None,
+    "View Data": view_main,
+    "Upload Data": upload_main,
+    "Visualize": visualize_main,
+    "Display Visualizations": display_visualizations,
+    "About Us": about_main,
+    "Contact Us": contact_main
+}
+
+st.sidebar.title("Navigation")
+selection = st.sidebar.radio("", list(PAGES.keys()))
 
 # Page routing
-if page == "Home":
+if selection == "Home":
     # Add logo and title in the same row
     col1, col2 = st.columns([1, 12])
     with col1:
@@ -58,13 +70,9 @@ We're helping farmers adopt proven soil-friendly practices with support from par
 **Together, let’s grow a more regenerative future. 🌾💚**
     
     """)
-elif page == "About Us":
-    about_main()
-elif page == "Contact Us":
-    contact_main()
-elif page == "Upload Data":
-    upload_main()
-elif page == "View Data":
-    view_main()
-elif page == "Visualize":
-    visualize_main()
+else:
+    page = PAGES[selection]
+    if callable(page):
+        page()
+    elif hasattr(page, 'main') and callable(page.main):
+        page.main()
