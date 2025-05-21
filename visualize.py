@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
-from github import Github
-from io import BytesIO
+import requests
+from io import BytesIO, StringIO
 import matplotlib.pyplot as plt
 import seaborn as sns
 from xml.etree import ElementTree as ET
 import io
 from datetime import datetime
-import requests
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -45,8 +44,14 @@ def main():
                 df = excel_data.parse(sheet_name) if sheet_name else None
     elif action == "Select a file from GitHub":
         try:
-            contents = repo.get_contents("")
-            folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
+            # GitHub API call to get repository contents
+            url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
+            headers = {"Authorization": f"token {token}"}
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            contents = response.json()
+
+            folders = [content['path'] for content in contents if content['type'] == "dir" and content['path'] != "Visualizations"]
 
             # Organize folder, file, and sheet selection in a table with 3 columns and 2 rows
             col1, col2, col3 = st.columns(3)
@@ -55,15 +60,23 @@ def main():
                 folder_name = st.selectbox("Select a folder:", folders)
 
             if folder_name:
-                folder_contents = repo.get_contents(folder_name)
-                folder_files = [content.path for content in folder_contents if content.type == "file"]
+                # GitHub API call to get folder contents
+                url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder_name}"
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                folder_contents = response.json()
+                folder_files = [content['path'] for content in folder_contents if content['type'] == "file"]
 
                 with col2:
                     file_name = st.selectbox("Select a file:", folder_files)
 
                 if file_name and file_name.endswith(("xls", "xlsx")):
-                    file_content = repo.get_contents(file_name).decoded_content
-                    excel_data = pd.ExcelFile(BytesIO(file_content))
+                    # GitHub API call to get file content
+                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_name}"
+                    response = requests.get(url, headers=headers)
+                    response.raise_for_status()
+                    file_content = response.json()['content']
+                    excel_data = pd.ExcelFile(BytesIO(base64.b64decode(file_content)))
 
                     with col3:
                         sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
@@ -170,11 +183,18 @@ def main():
             else:
                 try:
                     visualization_path = f"Visualizations/{visualization_name}.png"
-                    repo.create_file(
-                        visualization_path,
-                        f"Add visualization {visualization_name}",
-                        st.session_state['visualization_buffer'].getvalue()
+                    # GitHub API call to create or update file
+                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{visualization_path}"
+                    response = requests.put(
+                        url,
+                        headers={"Authorization": f"token {token}"},
+                        json={
+                            "message": f"Add visualization {visualization_name}",
+                            "content": st.session_state['visualization_buffer'].getvalue().decode("utf-8"),
+                            "sha": None  # Always set sha to None for new files
+                        }
                     )
+                    response.raise_for_status()
 
                     xml_path = "Visualizations/visualizations.xml"
                     # Handle the case where the XML file does not exist or is empty

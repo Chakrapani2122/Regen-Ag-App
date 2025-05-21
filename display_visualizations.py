@@ -1,8 +1,8 @@
 import streamlit as st
-from github import Github
+import requests
 from xml.etree import ElementTree as ET
 from io import BytesIO
-import requests
+import base64
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -25,15 +25,21 @@ def main():
         st.error("Invalid token or repository access issue.")
         return
 
-    g = Github(token)
-    repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
+    # Replace all github module usage with requests-based API calls as in view.py
+    # For file content, use the API as in view.py
 
     # Step 2: Fetch and parse visualizations.xml
     xml_path = "Visualizations/visualizations.xml"
     try:
-        xml_file = repo.get_contents(xml_path)
-        xml_content = xml_file.decoded_content.decode("utf-8")
-        root = ET.fromstring(xml_content)
+        headers = {"Authorization": f"token {token}"}
+        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{xml_path}"
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        xml_content = response.json()["content"]
+        xml_content = BytesIO(base64.b64decode(xml_content))
+        tree = ET.parse(xml_content)
+        root = tree.getroot()
+
         images = root.findall("Image")
         if not images:
             st.info("No visualizations found.")
@@ -53,8 +59,12 @@ def main():
         with col1:
             # Fetch the image file from GitHub
             try:
-                file_content = repo.get_contents(path).decoded_content
-                st.image(BytesIO(file_content), use_column_width=True)
+                url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                file_content = response.json()["content"]
+                file_content = BytesIO(base64.b64decode(file_content))
+                st.image(file_content, use_column_width=True)
             except Exception:
                 st.warning(f"Could not load image: {name}")
         with col2:

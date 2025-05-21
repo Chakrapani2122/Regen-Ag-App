@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-from github import Github
-from io import BytesIO, StringIO
 import requests
+from io import BytesIO, StringIO
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -10,71 +9,73 @@ def validate_github_token(token):
     response = requests.get(url, headers=headers)
     return response.status_code == 200
 
+def get_github_folders(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [item['name'] for item in response.json() if item['type'] == 'dir' and item['name'] != 'Visualizations']
+    return []
+
+def get_github_files(token, folder):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [item['name'] for item in response.json() if item['type'] == 'file']
+    return []
+
+def get_github_file_content(token, folder, file):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder}/{file}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        import base64
+        content = response.json()['content']
+        return base64.b64decode(content)
+    return None
+
 def main():
     st.title("View Data from GitHub Repository")
     st.write("*Access only to team members.*")
 
-    # Step 1: Ask for GitHub security token
     token = st.text_input("Enter your GitHub security token:", type="password")
     if not token:
         st.warning("Please provide your GitHub security token to proceed.")
         return
 
-    if validate_github_token(token):
-        st.success("Token validated successfully!")
-    else:
+    if not validate_github_token(token):
         st.error("Invalid token or repository access issue.")
         return
+    st.success("Token validated successfully!")
 
-    # Step 3: List folders (excluding 'Visualizations') and select folder in a table layout
-    try:
-        g = Github(token)
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
-        contents = repo.get_contents("")
-        folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            folder_name = st.selectbox("Select a folder:", folders)
-    except Exception as e:
-        st.error(f"Error fetching folders: {e}")
-        return
-
-    # Step 4: List files in the selected folder and select file in the table layout
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        folders = get_github_folders(token)
+        folder_name = st.selectbox("Select a folder:", folders)
     if folder_name:
-        try:
-            folder_contents = repo.get_contents(folder_name)
-            folder_files = [content.path for content in folder_contents if content.type == "file"]
-            with col2:
-                file_name = st.selectbox("Select a file:", folder_files)
-        except Exception as e:
-            st.error(f"Error fetching files: {e}")
-            return
+        with col2:
+            files = get_github_files(token, folder_name)
+            file_name = st.selectbox("Select a file:", files)
     else:
         file_name = None
-
-    # Step 5: If file is Excel, select sheet in the table layout
     sheet_name = None
     df = None
     if file_name and file_name.endswith(("xls", "xlsx")):
-        try:
-            file_content = repo.get_contents(file_name).decoded_content
+        file_content = get_github_file_content(token, folder_name, file_name)
+        if file_content:
             excel_data = pd.ExcelFile(BytesIO(file_content))
             with col3:
                 sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
             if sheet_name:
                 df = excel_data.parse(sheet_name)
-        except Exception as e:
-            st.error(f"Error reading Excel file: {e}")
     elif file_name and file_name.endswith("csv"):
-        try:
-            file_content = repo.get_contents(file_name).decoded_content.decode("utf-8")
-            df = pd.read_csv(StringIO(file_content))
-        except Exception as e:
-            st.error(f"Error reading CSV file: {e}")
+        file_content = get_github_file_content(token, folder_name, file_name)
+        if file_content:
+            df = pd.read_csv(StringIO(file_content.decode("utf-8")))
     elif file_name:
         st.warning("Only Excel and CSV files are supported for preview.")
 
-    # Step 6: Display file and sheet in an expander
     if df is not None:
         with st.expander("File Display", expanded=True):
             st.dataframe(df, height=700)
