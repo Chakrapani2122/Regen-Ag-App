@@ -7,6 +7,7 @@ import seaborn as sns
 from xml.etree import ElementTree as ET
 import io
 from datetime import datetime
+import base64
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
