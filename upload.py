@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import requests
+import base64
 from io import StringIO, BytesIO
 
 def validate_github_token(token):
@@ -120,7 +121,7 @@ def main():
                             url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
                             response = requests.put(url, headers={"Authorization": f"token {token}"}, json={
                                 "message": f"Add {file.name}",
-                                "content": content.decode("utf-8"),
+                                "content": base64.b64encode(content).decode("utf-8"),
                                 "path": file_path
                             })
                             response.raise_for_status()
