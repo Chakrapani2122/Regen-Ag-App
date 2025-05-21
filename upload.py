@@ -1,27 +1,30 @@
 import streamlit as st
 import pandas as pd
 import os
+import requests
 from github import Github
 from io import StringIO, BytesIO
+
+def validate_github_token(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
 
 def main():
     st.title("Upload the Data")
     st.write("*Access only to team members.*")
 
     # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter the security token:", type="password")
+    token = st.text_input("Enter your GitHub security token:", type="password")
     if not token:
-        st.warning("Please provide the security token to proceed.")
+        st.warning("Please provide your GitHub security token to proceed.")
         return
 
-    # Step 2: Validate the token
-    try:
-        g = Github(token)
-        user = g.get_user()
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
-        st.success(f"Token validated successfully!")
-    except Exception as e:
-        st.error(f"Invalid token or access issue: {e}")
+    if validate_github_token(token):
+        st.success("Token validated successfully!")
+    else:
+        st.error("Invalid token or repository access issue.")
         return
 
     # Step 3: File upload

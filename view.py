@@ -2,6 +2,13 @@ import streamlit as st
 import pandas as pd
 from github import Github
 from io import BytesIO, StringIO
+import requests
+
+def validate_github_token(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
 
 def main():
     st.title("View Data from GitHub Repository")
@@ -13,17 +20,16 @@ def main():
         st.warning("Please provide your GitHub security token to proceed.")
         return
 
-    # Step 2: Validate the token with the Regen-Ag-Data repository
-    try:
-        g = Github(token)
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
+    if validate_github_token(token):
         st.success("Token validated successfully!")
-    except Exception as e:
-        st.error(f"Invalid token or repository access issue: {e}")
+    else:
+        st.error("Invalid token or repository access issue.")
         return
 
     # Step 3: List folders (excluding 'Visualizations') and select folder in a table layout
     try:
+        g = Github(token)
+        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
         contents = repo.get_contents("")
         folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
         col1, col2, col3 = st.columns(3)

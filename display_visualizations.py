@@ -4,21 +4,29 @@ from xml.etree import ElementTree as ET
 from io import BytesIO
 import requests
 
+def validate_github_token(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
+
 def main():
     st.title("Created Visualizations")
 
     # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter your security token:", type="password")
+    token = st.text_input("Enter your GitHub security token:", type="password")
     if not token:
-        st.warning("Please provide your security token to proceed.")
+        st.warning("Please provide your GitHub security token to proceed.")
         return
 
-    try:
-        g = Github(token)
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
-    except Exception as e:
-        st.error(f"Invalid token or access issue: {e}")
+    if validate_github_token(token):
+        st.success("Token validated successfully!")
+    else:
+        st.error("Invalid token or repository access issue.")
         return
+
+    g = Github(token)
+    repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
 
     # Step 2: Fetch and parse visualizations.xml
     xml_path = "Visualizations/visualizations.xml"
