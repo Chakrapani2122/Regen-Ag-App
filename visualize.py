@@ -191,7 +191,7 @@ def main():
                         headers={"Authorization": f"token {token}"},
                         json={
                             "message": f"Add visualization {visualization_name}",
-                            "content": st.session_state['visualization_buffer'].getvalue().decode("utf-8"),
+                            "content": base64.b64encode(st.session_state['visualization_buffer'].getvalue()).decode("utf-8"),
                             "sha": None  # Always set sha to None for new files
                         }
                     )
