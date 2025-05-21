@@ -36,16 +36,16 @@ def get_github_file_content(token, folder, file):
     return None
 
 def main():
-    st.title("View Data from GitHub Repository")
+    st.title("View Data")
     st.write("*Access only to team members.*")
 
-    token = st.text_input("Enter your GitHub security token:", type="password")
+    token = st.text_input("Enter your security token:", type="password")
     if not token:
-        st.warning("Please provide your GitHub security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
     if not validate_github_token(token):
-        st.error("Invalid token or repository access issue.")
+        st.error("Invalid token or access issue.")
         return
     st.success("Token validated successfully!")
 
@@ -79,18 +79,36 @@ def main():
     if df is not None:
         with st.expander("File Display", expanded=True):
             st.dataframe(df, height=700)
-        with st.expander("Data Types", expanded=False):
-            col_data = [(col, str(df[col].dtype)) for col in df.columns]
-            col1, col2, col3, col4 = st.columns(4)
-            for i, (col_name, col_type) in enumerate(col_data):
-                if i % 4 == 0:
-                    col1.write(f"**{col_name}**\n{col_type}")
-                elif i % 4 == 1:
-                    col2.write(f"**{col_name}**\n{col_type}")
-                elif i % 4 == 2:
-                    col3.write(f"**{col_name}**\n{col_type}")
-                elif i % 4 == 3:
-                    col4.write(f"**{col_name}**\n{col_type}")
+        # Only show Data Types and Summary if sheet_name is not 'Metadata'
+        if not (sheet_name and sheet_name.strip().lower() == "metadata"):
+            with st.expander("Data Types", expanded=False):
+                col_data = [(col, str(df[col].dtype)) for col in df.columns]
+                col1, col2, col3, col4 = st.columns(4)
+                for i, (col_name, col_type) in enumerate(col_data):
+                    if i % 4 == 0:
+                        col1.write(f"{col_name} : \n{col_type}")
+                    elif i % 4 == 1:
+                        col2.write(f"{col_name} : \n{col_type}")
+                    elif i % 4 == 2:
+                        col3.write(f"{col_name} : \n{col_type}")
+                    elif i % 4 == 3:
+                        col4.write(f"{col_name} : \n{col_type}")
+            with st.expander("Summary", expanded=False):
+                st.write(f"**Shape:** Rows: {df.shape[0]}, Columns: {df.shape[1]}")
+                st.write("**Missing values per column:**")
+                missing_data = df.isnull().sum()
+                col1, col2, col3, col4 = st.columns(4)
+                for i, (col_name, missing) in enumerate(missing_data.items()):
+                    if i % 4 == 0:
+                        col1.write(f"**{col_name}**: {missing}")
+                    elif i % 4 == 1:
+                        col2.write(f"**{col_name}**: {missing}")
+                    elif i % 4 == 2:
+                        col3.write(f"**{col_name}**: {missing}")
+                    elif i % 4 == 3:
+                        col4.write(f"**{col_name}**: {missing}")
+                st.write("**Descriptive statistics:**")
+                st.write(df.describe(include='all'))
 
 if __name__ == "__main__":
     main()

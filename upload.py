@@ -16,15 +16,15 @@ def main():
     st.write("*Access only to team members.*")
 
     # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter your GitHub security token:", type="password")
+    token = st.text_input("Enter your security token:", type="password")
     if not token:
-        st.warning("Please provide your GitHub security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
     if validate_github_token(token):
         st.success("Token validated successfully!")
     else:
-        st.error("Invalid token or repository access issue.")
+        st.error("Invalid token or access issue.")
         return
 
     # Step 3: File upload

@@ -23,15 +23,15 @@ def main():
     st.write("*Access only to team members.*")
 
     # Step 1: GitHub Token Validation
-    token = st.text_input("Enter your GitHub security token:", type="password")
+    token = st.text_input("Enter your security token:", type="password")
     if not token:
-        st.warning("Please provide your GitHub security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
     if validate_github_token(token):
         st.success("Token validated successfully!")
     else:
-        st.error("Invalid token or repository access issue.")
+        st.error("Invalid token or access issue.")
         return
 
     # Step 2: File Selection
@@ -90,8 +90,8 @@ def main():
             return
 
     if 'df' in locals() and df is not None:
-        st.write("### Data Preview")
-        st.write(df)
+        with st.expander("Data Preview", expanded=True):
+            st.write(df)
 
         # Step 3: Visualization Creation
         col1, col2, col3 = st.columns(3)
