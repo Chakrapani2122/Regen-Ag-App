@@ -198,27 +198,20 @@ def main():
                     response.raise_for_status()
 
                     xml_path = "Visualizations/visualizations.xml"
-                    # Handle the case where the XML file does not exist or is empty
+                    headers = {"Authorization": f"token {token}"}
+                    xml_url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{xml_path}"
+                    xml_content = "<Images></Images>"
+                    sha = None
                     try:
-                        xml_file = repo.get_contents(xml_path)
-                        xml_content = xml_file.decoded_content.decode("utf-8")
-                        sha = xml_file.sha  # Always get sha if file exists
-                        if not xml_content.strip():
-                            # If file is empty, initialize with root and update with sha
-                            xml_content = "<Images></Images>"
-                            repo.update_file(
-                                xml_path,
-                                "Initialize visualizations.xml",
-                                xml_content,
-                                sha=sha
-                            )
-                            # Re-fetch to get new sha after update
-                            xml_file = repo.get_contents(xml_path)
-                            xml_content = xml_file.decoded_content.decode("utf-8")
-                            sha = xml_file.sha
+                        xml_response = requests.get(xml_url, headers=headers)
+                        if xml_response.status_code == 200:
+                            xml_json = xml_response.json()
+                            xml_content = base64.b64decode(xml_json["content"]).decode("utf-8")
+                            sha = xml_json["sha"]
+                            if not xml_content.strip():
+                                xml_content = "<Images></Images>"
                     except Exception:
-                        xml_content = "<Images></Images>"
-                        sha = None  # No sha since the file does not exist
+                        pass
 
                     root = ET.fromstring(xml_content)
                     new_image = ET.SubElement(root, "Image")
@@ -229,19 +222,14 @@ def main():
                     ET.SubElement(new_image, "Date").text = creation_date
 
                     updated_xml_content = ET.tostring(root, encoding="unicode")
+                    put_data = {
+                        "message": f"Update visualizations.xml with {visualization_name}",
+                        "content": base64.b64encode(updated_xml_content.encode("utf-8")).decode("utf-8")
+                    }
                     if sha:
-                        repo.update_file(
-                            xml_path,
-                            f"Update visualizations.xml with {visualization_name}",
-                            updated_xml_content,
-                            sha=sha
-                        )
-                    else:
-                        repo.create_file(
-                            xml_path,
-                            f"Create visualizations.xml with {visualization_name}",
-                            updated_xml_content
-                        )
+                        put_data["sha"] = sha
+                    put_response = requests.put(xml_url, headers=headers, json=put_data)
+                    put_response.raise_for_status()
 
                     st.success(f"Visualization '{visualization_name}' uploaded successfully.")
                 except Exception as e:
