@@ -5,7 +5,7 @@ from io import BytesIO
 import base64
 import warnings
 
-warnings.filterwarnings("ignore", message=".*use_column_width parameter has been deprecated.*")
+warnings.filterwarnings("ignore")
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}

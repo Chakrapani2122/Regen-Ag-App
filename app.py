@@ -19,7 +19,7 @@ PAGES = {
     "Home": None,
     "View Data": view_main,
     "Upload Data": upload_main,
-    "Create Visualize": visualize_main,
+    "Create Visualizations": visualize_main,
     "View Visualizations": display_visualizations,
     "About Us": about_main,
     "Contact Us": contact_main
