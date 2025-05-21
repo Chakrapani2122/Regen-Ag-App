@@ -3,6 +3,9 @@ import requests
 from xml.etree import ElementTree as ET
 from io import BytesIO
 import base64
+import warnings
+
+warnings.filterwarnings("ignore", message=".*use_column_width parameter has been deprecated.*")
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
