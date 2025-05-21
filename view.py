@@ -4,13 +4,13 @@ from github import Github
 from io import StringIO, BytesIO
 
 def main():
-    st.title("View Research Data")
+    st.title("View Data")
     st.write("*Access only to team members.*")
 
     # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter your GitHub security token:", type="password")
+    token = st.text_input("Enter security token:", type="password")
     if not token:
-        st.warning("Please provide your GitHub security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
     # Step 2: Validate the token
@@ -19,7 +19,7 @@ def main():
         repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
         st.success("Token validated successfully!")
     except Exception as e:
-        st.error(f"Invalid token or repository access issue: {e}")
+        st.error(f"Invalid token or access issue: {e}")
         return
 
     # Step 3: List files and folders in the repository
@@ -58,7 +58,7 @@ def main():
                             st.warning("No sheet selected.")
 
                     # Step 5: Display column names and data types
-                    with st.expander("Column Names and Data Types"):
+                    with st.expander("Data Types"):
                         if sheet_name:
                             df = excel_data.parse(sheet_name)
                             if not df.empty:
@@ -82,4 +82,4 @@ def main():
                 else:
                     st.warning("Please select a valid Excel file.")
     except Exception as e:
-        st.error(f"Error fetching repository contents: {e}")
+        st.error(f"Error fetching contents: {e}")
