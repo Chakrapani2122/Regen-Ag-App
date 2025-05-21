@@ -19,8 +19,8 @@ PAGES = {
     "Home": None,
     "View Data": view_main,
     "Upload Data": upload_main,
-    "Visualize": visualize_main,
-    "Display Visualizations": display_visualizations,
+    "Create Visualize": visualize_main,
+    "View Visualizations": display_visualizations,
     "About Us": about_main,
     "Contact Us": contact_main
 }
