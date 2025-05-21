@@ -84,7 +84,8 @@ def main():
         try:
             repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
             contents = repo.get_contents("")
-            folders = [content.path for content in contents if content.type == "dir"]
+            # Exclude the 'Visualizations' folder from the list
+            folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
 
             if not folders:
                 st.warning("No folders found in the repository.")
