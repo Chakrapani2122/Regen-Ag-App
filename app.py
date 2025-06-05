@@ -27,7 +27,7 @@ PAGES = {
     "Data Schedule": data_schedule_main
 }
 
-st.sidebar.title("Navigation")
+st.sidebar.title("Regen Ag")
 selection = st.sidebar.radio("", list(PAGES.keys()))
 
 # Page routing
