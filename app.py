@@ -12,7 +12,7 @@ from data_schedule import main as data_schedule_main
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Set up the Streamlit app with favicon
-st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/logo.png")
+st.set_page_config(page_title="KSU - Regenerative Agriculture", layout="wide", page_icon="assets/logo.png")
 
 # Sidebar navigation with logo
 st.sidebar.image("assets/logo.png", width=80, caption=None)
