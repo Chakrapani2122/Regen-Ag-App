@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from io import BytesIO, StringIO
+import docx
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -17,6 +18,17 @@ def get_github_folders(token):
         return [item['name'] for item in response.json() if item['type'] == 'dir' and item['name'] != 'Visualizations']
     return []
 
+def get_folder_contents(token, path):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        items = response.json()
+        subfolders = [item['name'] for item in items if item['type'] == 'dir']
+        files = [item['name'] for item in items if item['type'] == 'file']
+        return subfolders, files
+    return [], []
+
 def get_github_files(token, folder):
     headers = {"Authorization": f"token {token}"}
     url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder}"
@@ -25,15 +37,26 @@ def get_github_files(token, folder):
         return [item['name'] for item in response.json() if item['type'] == 'file']
     return []
 
-def get_github_file_content(token, folder, file):
+def get_github_file_content(token, path, file):
     headers = {"Authorization": f"token {token}"}
-    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder}/{file}"
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}/{file}"
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         import base64
         content = response.json()['content']
         return base64.b64decode(content)
     return None
+
+def read_docx(content):
+    """Reads content from a .docx file."""
+    try:
+        doc = docx.Document(BytesIO(content))
+        full_text = []
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+        return '\n'.join(full_text)
+    except Exception as e:
+        return f"Error reading .docx file: {e}"
 
 def main():
     st.title("View Data")
@@ -49,32 +72,65 @@ def main():
         return
     st.success("Token validated successfully!")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         folders = get_github_folders(token)
         folder_name = st.selectbox("Select a folder:", folders)
+
+    subfolder_name = None
+    file_name = None
+    
     if folder_name:
-        with col2:
-            files = get_github_files(token, folder_name)
-            file_name = st.selectbox("Select a file:", files)
-    else:
-        file_name = None
+        subfolders, files_in_folder = get_folder_contents(token, folder_name)
+        
+        if subfolders:
+            with col2:
+                subfolder_name = st.selectbox("Select a subfolder:", [""] + subfolders)
+            
+            if subfolder_name:
+                _, files_in_subfolder = get_folder_contents(token, f"{folder_name}/{subfolder_name}")
+                with col3:
+                    file_name = st.selectbox("Select a file:", files_in_subfolder)
+        else:
+            with col2:
+                file_name = st.selectbox("Select a file:", files_in_folder)
+
     sheet_name = None
     df = None
-    if file_name and file_name.endswith(("xls", "xlsx")):
-        file_content = get_github_file_content(token, folder_name, file_name)
-        if file_content:
-            excel_data = pd.ExcelFile(BytesIO(file_content))
-            with col3:
-                sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
-            if sheet_name:
-                df = excel_data.parse(sheet_name)
-    elif file_name and file_name.endswith("csv"):
-        file_content = get_github_file_content(token, folder_name, file_name)
-        if file_content:
-            df = pd.read_csv(StringIO(file_content.decode("utf-8")))
-    elif file_name:
-        st.warning("Only Excel and CSV files are supported for preview.")
+    
+    if file_name:
+        path = f"{folder_name}/{subfolder_name}" if subfolder_name else folder_name
+        file_content = get_github_file_content(token, path, file_name)
+        
+        if file_name.endswith(("xls", "xlsx")):
+            if file_content:
+                excel_data = pd.ExcelFile(BytesIO(file_content))
+                with col4:
+                    sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
+                if sheet_name:
+                    df = excel_data.parse(sheet_name)
+        elif file_name.endswith("csv"):
+            if file_content:
+                df = pd.read_csv(StringIO(file_content.decode("utf-8")))
+        elif file_name.endswith("docx"):
+            if file_content:
+                st.info("Successfully fetched .docx file content.")
+                st.write(f"File size: {len(file_content)} bytes")
+                
+                docx_text = read_docx(file_content)
+
+                if "Error reading .docx file" in docx_text:
+                    st.error(docx_text)
+                elif not docx_text.strip():
+                    st.warning("The .docx file appears to be empty or could not be read.")
+                else:
+                    st.info("Successfully parsed .docx content.")
+                    with st.expander("DOCX Content", expanded=True):
+                        st.text_area("Content", docx_text, height=700, label_visibility="hidden")
+            else:
+                st.warning("Failed to fetch .docx file content.")
+        else:
+            st.warning("Only Excel, CSV, and DOCX files are supported for preview.")
 
     if df is not None:
         with st.expander("File Display", expanded=True):

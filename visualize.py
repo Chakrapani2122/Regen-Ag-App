@@ -18,6 +18,35 @@ def validate_github_token(token):
     response = requests.get(url, headers=headers)
     return response.status_code == 200
 
+def get_github_folders(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [item['name'] for item in response.json() if item['type'] == 'dir' and item['name'] != 'Visualizations']
+    return []
+
+def get_folder_contents(token, path):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        items = response.json()
+        subfolders = [item['name'] for item in items if item['type'] == 'dir']
+        files = [item['name'] for item in items if item['type'] == 'file']
+        return subfolders, files
+    return [], []
+
+def get_github_file_content(token, path, file):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}/{file}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        import base64
+        content = response.json()['content']
+        return base64.b64decode(content)
+    return None
+
 def main():
     st.title("Visualize Your Data")
     st.write("*Access only to team members.*")
@@ -35,7 +64,8 @@ def main():
         return
 
     # Step 2: File Selection
-    action = st.radio("Choose an action:", ("Upload a file", "Select a file from GitHub"))
+    action = st.radio("Choose an action:", ("Upload a file", "Select a file"))
+    df = None
 
     if action == "Upload a file":
         uploaded_file = st.file_uploader("Upload your file (xls, xlsx, csv, dat, txt):", 
@@ -46,50 +76,52 @@ def main():
                 excel_data = pd.ExcelFile(uploaded_file)
                 sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
                 df = excel_data.parse(sheet_name) if sheet_name else None
-    elif action == "Select a file from GitHub":
+    elif action == "Select a file":
         try:
-            # GitHub API call to get repository contents
-            url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
-            headers = {"Authorization": f"token {token}"}
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            contents = response.json()
-
-            folders = [content['path'] for content in contents if content['type'] == "dir" and content['path'] != "Visualizations"]
-
-            # Organize folder, file, and sheet selection in a table with 3 columns and 2 rows
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
+                folders = get_github_folders(token)
                 folder_name = st.selectbox("Select a folder:", folders)
 
+            subfolder_name = None
+            file_name = None
+            
             if folder_name:
-                # GitHub API call to get folder contents
-                url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{folder_name}"
-                response = requests.get(url, headers=headers)
-                response.raise_for_status()
-                folder_contents = response.json()
-                folder_files = [content['path'] for content in folder_contents if content['type'] == "file"]
+                subfolders, files_in_folder = get_folder_contents(token, folder_name)
+                
+                if subfolders:
+                    with col2:
+                        subfolder_name = st.selectbox("Select a subfolder:", [""] + subfolders)
+                    
+                    if subfolder_name:
+                        _, files_in_subfolder = get_folder_contents(token, f"{folder_name}/{subfolder_name}")
+                        with col3:
+                            file_name = st.selectbox("Select a file:", files_in_subfolder)
+                else:
+                    with col2:
+                        file_name = st.selectbox("Select a file:", files_in_folder)
 
-                with col2:
-                    file_name = st.selectbox("Select a file:", folder_files)
+            if file_name:
+                path = f"{folder_name}/{subfolder_name}" if subfolder_name else folder_name
+                file_content = get_github_file_content(token, path, file_name)
+                
+                if file_name.endswith(("xls", "xlsx")):
+                    if file_content:
+                        excel_data = pd.ExcelFile(BytesIO(file_content))
+                        with col4:
+                            sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
+                        if sheet_name:
+                            df = excel_data.parse(sheet_name)
+                elif file_name.endswith(("csv", "dat", "txt")):
+                    if file_content:
+                        df = pd.read_csv(StringIO(file_content.decode("utf-8")))
 
-                if file_name and file_name.endswith(("xls", "xlsx")):
-                    # GitHub API call to get file content
-                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_name}"
-                    response = requests.get(url, headers=headers)
-                    response.raise_for_status()
-                    file_content = response.json()['content']
-                    excel_data = pd.ExcelFile(BytesIO(base64.b64decode(file_content)))
-
-                    with col3:
-                        sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
-                        df = excel_data.parse(sheet_name) if sheet_name else None
         except Exception as e:
             st.error(f"Error fetching repository contents: {e}")
             return
 
-    if 'df' in locals() and df is not None:
+    if df is not None:
         with st.expander("Data Preview", expanded=True):
             st.write(df)
 
