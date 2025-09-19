@@ -6,12 +6,13 @@ from upload import main as upload_main
 from view import main as view_main
 from visualize import main as visualize_main
 import display_visualizations
+from data_schedule import main as data_schedule_main
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Set up the Streamlit app with favicon
-st.set_page_config(page_title="Reagn Ag App", layout="wide", page_icon="assets/logo.png")
+st.set_page_config(page_title="KSU - Regenerative Agriculture", layout="wide", page_icon="assets/logo.png")
 
 # Sidebar navigation with logo
 st.sidebar.image("assets/logo.png", width=80, caption=None)
@@ -19,13 +20,14 @@ PAGES = {
     "Home": None,
     "View Data": view_main,
     "Upload Data": upload_main,
-    "Visualize": visualize_main,
-    "Display Visualizations": display_visualizations,
+    "Create Visualizations": visualize_main,
+    "View Visualizations": display_visualizations,
     "About Us": about_main,
-    "Contact Us": contact_main
+    "Contact Us": contact_main,
+    "Data Schedule": data_schedule_main
 }
 
-st.sidebar.title("Navigation")
+st.sidebar.title("KSURA")
 selection = st.sidebar.radio("", list(PAGES.keys()))
 
 # Page routing

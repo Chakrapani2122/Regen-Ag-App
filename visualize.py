@@ -1,33 +1,71 @@
 import streamlit as st
 import pandas as pd
-from github import Github
-from io import BytesIO
+import requests
+from io import BytesIO, StringIO
 import matplotlib.pyplot as plt
 import seaborn as sns
 from xml.etree import ElementTree as ET
 import io
 from datetime import datetime
+import base64
+import warnings
+
+warnings.filterwarnings("ignore")
+
+def validate_github_token(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
+
+def get_github_folders(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [item['name'] for item in response.json() if item['type'] == 'dir' and item['name'] != 'Visualizations']
+    return []
+
+def get_folder_contents(token, path):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        items = response.json()
+        subfolders = [item['name'] for item in items if item['type'] == 'dir']
+        files = [item['name'] for item in items if item['type'] == 'file']
+        return subfolders, files
+    return [], []
+
+def get_github_file_content(token, path, file):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}/{file}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        import base64
+        content = response.json()['content']
+        return base64.b64decode(content)
+    return None
 
 def main():
     st.title("Visualize Your Data")
     st.write("*Access only to team members.*")
 
     # Step 1: GitHub Token Validation
-    token = st.text_input("Enter your GitHub security token:", type="password")
+    token = st.text_input("Enter your security token:", type="password")
     if not token:
-        st.warning("Please provide your GitHub security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
-    try:
-        g = Github(token)
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
+    if validate_github_token(token):
         st.success("Token validated successfully!")
-    except Exception as e:
-        st.error(f"Invalid token or repository access issue: {e}")
+    else:
+        st.error("Invalid token or access issue.")
         return
 
     # Step 2: File Selection
-    action = st.radio("Choose an action:", ("Upload a file", "Select a file from GitHub"))
+    action = st.radio("Choose an action:", ("Upload a file", "Select a file"))
+    df = None
 
     if action == "Upload a file":
         uploaded_file = st.file_uploader("Upload your file (xls, xlsx, csv, dat, txt):", 
@@ -38,38 +76,54 @@ def main():
                 excel_data = pd.ExcelFile(uploaded_file)
                 sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
                 df = excel_data.parse(sheet_name) if sheet_name else None
-    elif action == "Select a file from GitHub":
+    elif action == "Select a file":
         try:
-            contents = repo.get_contents("")
-            folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
-
-            # Organize folder, file, and sheet selection in a table with 3 columns and 2 rows
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
+                folders = get_github_folders(token)
                 folder_name = st.selectbox("Select a folder:", folders)
 
+            subfolder_name = None
+            file_name = None
+            
             if folder_name:
-                folder_contents = repo.get_contents(folder_name)
-                folder_files = [content.path for content in folder_contents if content.type == "file"]
+                subfolders, files_in_folder = get_folder_contents(token, folder_name)
+                
+                if subfolders:
+                    with col2:
+                        subfolder_name = st.selectbox("Select a subfolder:", [""] + subfolders)
+                    
+                    if subfolder_name:
+                        _, files_in_subfolder = get_folder_contents(token, f"{folder_name}/{subfolder_name}")
+                        with col3:
+                            file_name = st.selectbox("Select a file:", files_in_subfolder)
+                else:
+                    with col2:
+                        file_name = st.selectbox("Select a file:", files_in_folder)
 
-                with col2:
-                    file_name = st.selectbox("Select a file:", folder_files)
+            if file_name:
+                path = f"{folder_name}/{subfolder_name}" if subfolder_name else folder_name
+                file_content = get_github_file_content(token, path, file_name)
+                
+                if file_name.endswith(("xls", "xlsx")):
+                    if file_content:
+                        excel_data = pd.ExcelFile(BytesIO(file_content))
+                        with col4:
+                            sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
+                        if sheet_name:
+                            df = excel_data.parse(sheet_name)
+                elif file_name.endswith(("csv", "dat", "txt")):
+                    if file_content:
+                        df = pd.read_csv(StringIO(file_content.decode("utf-8")))
 
-                if file_name and file_name.endswith(("xls", "xlsx")):
-                    file_content = repo.get_contents(file_name).decoded_content
-                    excel_data = pd.ExcelFile(BytesIO(file_content))
-
-                    with col3:
-                        sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
-                        df = excel_data.parse(sheet_name) if sheet_name else None
         except Exception as e:
             st.error(f"Error fetching repository contents: {e}")
             return
 
-    if 'df' in locals() and df is not None:
-        st.write("### Data Preview")
-        st.write(df)
+    if df is not None:
+        with st.expander("Data Preview", expanded=True):
+            st.write(df)
 
         # Step 3: Visualization Creation
         col1, col2, col3 = st.columns(3)
@@ -165,34 +219,34 @@ def main():
             else:
                 try:
                     visualization_path = f"Visualizations/{visualization_name}.png"
-                    repo.create_file(
-                        visualization_path,
-                        f"Add visualization {visualization_name}",
-                        st.session_state['visualization_buffer'].getvalue()
+                    # GitHub API call to create or update file
+                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{visualization_path}"
+                    response = requests.put(
+                        url,
+                        headers={"Authorization": f"token {token}"},
+                        json={
+                            "message": f"Add visualization {visualization_name}",
+                            "content": base64.b64encode(st.session_state['visualization_buffer'].getvalue()).decode("utf-8"),
+                            "sha": None  # Always set sha to None for new files
+                        }
                     )
+                    response.raise_for_status()
 
                     xml_path = "Visualizations/visualizations.xml"
-                    # Handle the case where the XML file does not exist or is empty
+                    headers = {"Authorization": f"token {token}"}
+                    xml_url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{xml_path}"
+                    xml_content = "<Images></Images>"
+                    sha = None
                     try:
-                        xml_file = repo.get_contents(xml_path)
-                        xml_content = xml_file.decoded_content.decode("utf-8")
-                        sha = xml_file.sha  # Always get sha if file exists
-                        if not xml_content.strip():
-                            # If file is empty, initialize with root and update with sha
-                            xml_content = "<Images></Images>"
-                            repo.update_file(
-                                xml_path,
-                                "Initialize visualizations.xml",
-                                xml_content,
-                                sha=sha
-                            )
-                            # Re-fetch to get new sha after update
-                            xml_file = repo.get_contents(xml_path)
-                            xml_content = xml_file.decoded_content.decode("utf-8")
-                            sha = xml_file.sha
+                        xml_response = requests.get(xml_url, headers=headers)
+                        if xml_response.status_code == 200:
+                            xml_json = xml_response.json()
+                            xml_content = base64.b64decode(xml_json["content"]).decode("utf-8")
+                            sha = xml_json["sha"]
+                            if not xml_content.strip():
+                                xml_content = "<Images></Images>"
                     except Exception:
-                        xml_content = "<Images></Images>"
-                        sha = None  # No sha since the file does not exist
+                        pass
 
                     root = ET.fromstring(xml_content)
                     new_image = ET.SubElement(root, "Image")
@@ -203,19 +257,14 @@ def main():
                     ET.SubElement(new_image, "Date").text = creation_date
 
                     updated_xml_content = ET.tostring(root, encoding="unicode")
+                    put_data = {
+                        "message": f"Update visualizations.xml with {visualization_name}",
+                        "content": base64.b64encode(updated_xml_content.encode("utf-8")).decode("utf-8")
+                    }
                     if sha:
-                        repo.update_file(
-                            xml_path,
-                            f"Update visualizations.xml with {visualization_name}",
-                            updated_xml_content,
-                            sha=sha
-                        )
-                    else:
-                        repo.create_file(
-                            xml_path,
-                            f"Create visualizations.xml with {visualization_name}",
-                            updated_xml_content
-                        )
+                        put_data["sha"] = sha
+                    put_response = requests.put(xml_url, headers=headers, json=put_data)
+                    put_response.raise_for_status()
 
                     st.success(f"Visualization '{visualization_name}' uploaded successfully.")
                 except Exception as e:

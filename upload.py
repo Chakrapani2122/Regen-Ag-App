@@ -1,27 +1,30 @@
 import streamlit as st
 import pandas as pd
 import os
-from github import Github
+import requests
+import base64
 from io import StringIO, BytesIO
+
+def validate_github_token(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
 
 def main():
     st.title("Upload the Data")
     st.write("*Access only to team members.*")
 
     # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter the security token:", type="password")
+    token = st.text_input("Enter your security token:", type="password")
     if not token:
-        st.warning("Please provide the security token to proceed.")
+        st.warning("Please provide your security token to proceed.")
         return
 
-    # Step 2: Validate the token
-    try:
-        g = Github(token)
-        user = g.get_user()
-        repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
-        st.success(f"Token validated successfully!")
-    except Exception as e:
-        st.error(f"Invalid token or access issue: {e}")
+    if validate_github_token(token):
+        st.success("Token validated successfully!")
+    else:
+        st.error("Invalid token or access issue.")
         return
 
     # Step 3: File upload
@@ -82,10 +85,14 @@ def main():
 
         # Step 5: List folders in the Regen-Ag-Data repository
         try:
-            repo = g.get_repo("Chakrapani2122/Regen-Ag-Data")
-            contents = repo.get_contents("")
+            headers = {"Authorization": f"token {token}"}
+            url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents"
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            contents = response.json()
+
             # Exclude the 'Visualizations' folder from the list
-            folders = [content.path for content in contents if content.type == "dir" and content.path != "Visualizations"]
+            folders = [content['path'] for content in contents if content['type'] == "dir" and content['path'] != "Visualizations"]
 
             if not folders:
                 st.warning("No folders found in the repository.")
@@ -103,12 +110,23 @@ def main():
                     file_path = os.path.join(folder_name, file.name)
                     try:
                         # Check if file already exists
-                        repo.get_contents(file_path)
+                        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
+                        response = requests.get(url, headers={"Authorization": f"token {token}"})
+                        response.raise_for_status()
                         st.warning(f"File '{file.name}' already exists at '{folder_name}'.")
-                    except:
-                        # Upload file
-                        content = file.getvalue()
-                        repo.create_file(file_path, f"Add {file.name}", content)
-                        st.success(f"File '{file.name}' uploaded successfully.")
+                    except requests.exceptions.HTTPError as err:
+                        if err.response.status_code == 404:
+                            # File does not exist, proceed with upload
+                            content = file.getvalue()
+                            url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
+                            response = requests.put(url, headers={"Authorization": f"token {token}"}, json={
+                                "message": f"Add {file.name}",
+                                "content": base64.b64encode(content).decode("utf-8"),
+                                "path": file_path
+                            })
+                            response.raise_for_status()
+                            st.success(f"File '{file.name}' uploaded successfully.")
+                        else:
+                            st.error(f"Error checking file existence: {err}")
             except Exception as e:
                 st.error(f"Error uploading files: {e}")
