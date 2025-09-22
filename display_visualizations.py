@@ -96,7 +96,7 @@ def main():
                     response.raise_for_status()
                     file_content = response.json()["content"]
                     file_content = BytesIO(base64.b64decode(file_content))
-                    st.image(file_content, use_column_width=True)
+                    st.image(file_content, use_container_width=True)
                     
                     # Download button for each visualization
                     st.download_button(
@@ -137,7 +137,7 @@ def main():
                     response.raise_for_status()
                     file_content = response.json()["content"]
                     file_content = BytesIO(base64.b64decode(file_content))
-                    st.image(file_content, use_column_width=True)
+                    st.image(file_content, use_container_width=True)
                     st.caption(f"**{name}**")
                     st.caption(f"{date}")
                 except Exception:
