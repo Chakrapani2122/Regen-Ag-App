@@ -62,7 +62,7 @@ def main():
     with col1:
         sort_by = st.selectbox("Sort by:", ["Date (Newest)", "Date (Oldest)", "Name (A-Z)", "Name (Z-A)"])
     with col2:
-        search_viz = st.text_input("🔍 Search visualizations:", placeholder="Search by name or description")
+        search_viz = st.text_input("🔍 Search visualizations:", placeholder="Search by name or description", key="search_viz")
     with col3:
         view_mode = st.selectbox("View mode:", ["Gallery", "List", "Grid"])
 
