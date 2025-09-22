@@ -264,7 +264,7 @@ def main():
                             st.metric(f"{col} Max", f"{df[col].max():.2f}")
         
         # Add inputs for visualization name and description
-        visualization_name = st.text_input("Enter a name for the visualization:")
+        visualization_name = st.text_input("Enter a name for the visualization:", key="visualization_name")
         visualization_description = st.text_area("Enter a description for the visualization:")
 
         # Add an upload button
