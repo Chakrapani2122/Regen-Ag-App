@@ -4,6 +4,9 @@ import os
 import requests
 import base64
 from io import StringIO, BytesIO
+import warnings
+
+warnings.filterwarnings("ignore")
 
 def get_github_folders(token):
     headers = {"Authorization": f"token {token}"}

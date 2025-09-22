@@ -151,13 +151,25 @@ def main():
             ])
             
         with col4:
-            chart_style = st.selectbox("Chart Style:", ["Default", "Scientific", "Presentation"])
+            chart_style = st.selectbox("Chart Style:", ["Default", "Seaborn", "ggplot (R-style)", "FiveThirtyEight", "Dark Mode"])
 
         # Maintain visualization state after interactions
         if 'visualization_buffer' not in st.session_state:
             st.session_state['visualization_buffer'] = None
 
         if st.button("Generate Visualization"):
+            # Apply the selected style
+            if chart_style == "Default":
+                plt.style.use('default')
+            elif chart_style == "Seaborn":
+                plt.style.use('seaborn-v0_8')
+            elif chart_style == "ggplot (R-style)":
+                plt.style.use('ggplot')
+            elif chart_style == "FiveThirtyEight":
+                plt.style.use('fivethirtyeight')
+            elif chart_style == "Dark Mode":
+                plt.style.use('dark_background')
+
             fig, ax = plt.subplots()
 
             if plot_type == "Line Plot":

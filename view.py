@@ -5,6 +5,9 @@ from io import BytesIO, StringIO
 import docx
 import seaborn as sns
 import matplotlib.pyplot as plt
+import warnings
+
+warnings.filterwarnings("ignore")
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
