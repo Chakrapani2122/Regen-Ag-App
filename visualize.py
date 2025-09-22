@@ -9,6 +9,7 @@ import io
 from datetime import datetime
 import base64
 import warnings
+import numpy as np
 
 warnings.filterwarnings("ignore")
 
@@ -126,7 +127,17 @@ def main():
             st.write(df)
 
         # Step 3: Visualization Creation
-        col1, col2, col3 = st.columns(3)
+        st.write("### 📈 Visualization Configuration")
+        
+        # Quick insights
+        with st.expander("💡 Quick Data Insights"):
+            numeric_cols = df.select_dtypes(include=['number']).columns
+            if len(numeric_cols) > 0:
+                st.write(f"**Numeric columns:** {len(numeric_cols)}")
+                st.write(f"**Highest correlation:** {df[numeric_cols].corr().abs().unstack().sort_values(ascending=False).iloc[1]:.3f}")
+                st.write(f"**Missing values:** {df.isnull().sum().sum()}")
+        
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             x_axis = st.multiselect("Select columns for X-axis:", options=df.columns.tolist())
@@ -136,14 +147,29 @@ def main():
 
         with col3:
             plot_type = st.selectbox("Select the type of visualization:", [
-                "Line Plot", "Bar Plot", "Scatter Plot", "Histogram", "Box Plot", "Heatmap", "Violin Plot", "Pair Plot"
+                "Line Plot", "Bar Plot", "Scatter Plot", "Histogram", "Box Plot", "Heatmap", "Violin Plot", "Pair Plot", "Trend Analysis"
             ])
+            
+        with col4:
+            chart_style = st.selectbox("Chart Style:", ["Default", "Seaborn", "ggplot (R-style)", "FiveThirtyEight", "Dark Mode"])
 
         # Maintain visualization state after interactions
         if 'visualization_buffer' not in st.session_state:
             st.session_state['visualization_buffer'] = None
 
         if st.button("Generate Visualization"):
+            # Apply the selected style
+            if chart_style == "Default":
+                plt.style.use('default')
+            elif chart_style == "Seaborn":
+                plt.style.use('seaborn-v0_8')
+            elif chart_style == "ggplot (R-style)":
+                plt.style.use('ggplot')
+            elif chart_style == "FiveThirtyEight":
+                plt.style.use('fivethirtyeight')
+            elif chart_style == "Dark Mode":
+                plt.style.use('dark_background')
+
             fig, ax = plt.subplots()
 
             if plot_type == "Line Plot":
@@ -182,6 +208,15 @@ def main():
                 sns.pairplot(df[x_axis + y_axis])
                 st.pyplot()  # Pair plot creates its own figure
                 return
+                
+            elif plot_type == "Trend Analysis":
+                for y in y_axis:
+                    ax.plot(df[x_axis[0]], df[y], label=y, marker='o')
+                    # Add trend line
+                    z = np.polyfit(range(len(df)), df[y], 1)
+                    p = np.poly1d(z)
+                    ax.plot(df[x_axis[0]], p(range(len(df))), "--", alpha=0.7, label=f"{y} trend")
+                ax.set_title("Trend Analysis")
 
             ax.set_xlabel(", ".join(x_axis))
             ax.set_ylabel(", ".join(y_axis))
@@ -199,15 +234,43 @@ def main():
             image = plt.imread(buf, format='png')
             st.image(image, caption="Generated Visualization", use_column_width=True)
 
-        # Add a download button above the name input label
+        # Add download options
         if st.session_state['visualization_buffer']:
-            st.download_button(
-                label="Download Visualization",
-                data=st.session_state['visualization_buffer'].getvalue(),
-                file_name="visualization.png",
-                mime="image/png"
-            )
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                    label="💾 Download PNG",
+                    data=st.session_state['visualization_buffer'].getvalue(),
+                    file_name="visualization.png",
+                    mime="image/png"
+                )
+            with col2:
+                # Export data used in visualization
+                if x_axis and y_axis:
+                    export_df = df[x_axis + y_axis]
+                    csv = export_df.to_csv(index=False)
+                    st.download_button(
+                        label="📄 Download Data (CSV)",
+                        data=csv,
+                        file_name="visualization_data.csv",
+                        mime="text/csv"
+                    )
 
+        # Statistical summary for the visualization
+        if st.session_state['visualization_buffer'] and len(y_axis) > 0:
+            with st.expander("📊 Statistical Summary"):
+                for col in y_axis:
+                    if col in df.columns and df[col].dtype in ['int64', 'float64']:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric(f"{col} Mean", f"{df[col].mean():.2f}")
+                        with col2:
+                            st.metric(f"{col} Std", f"{df[col].std():.2f}")
+                        with col3:
+                            st.metric(f"{col} Min", f"{df[col].min():.2f}")
+                        with col4:
+                            st.metric(f"{col} Max", f"{df[col].max():.2f}")
+        
         # Add inputs for visualization name and description
         visualization_name = st.text_input("Enter a name for the visualization:")
         visualization_description = st.text_area("Enter a description for the visualization:")

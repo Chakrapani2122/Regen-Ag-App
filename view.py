@@ -3,6 +3,11 @@ import pandas as pd
 import requests
 from io import BytesIO, StringIO
 import docx
+import seaborn as sns
+import matplotlib.pyplot as plt
+import warnings
+
+warnings.filterwarnings("ignore")
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -134,8 +139,17 @@ def main():
 
     if df is not None:
         with st.expander("File Display", expanded=True):
-            st.dataframe(df, height=700)
-        # Only show Data Types and Summary if sheet_name is not 'Metadata'
+            # Add column filtering
+            if len(df.columns) > 10:
+                selected_cols = st.multiselect("Select columns to display:", df.columns.tolist(), default=df.columns.tolist()[:10])
+                if selected_cols:
+                    df_display = df[selected_cols]
+                else:
+                    df_display = df
+            else:
+                df_display = df
+            st.dataframe(df_display, height=700)
+        # Only show Data Types, Summary, and Descriptive Statistics if sheet_name is not 'Metadata'
         if not (sheet_name and sheet_name.strip().lower() == "metadata"):
             with st.expander("Data Types", expanded=False):
                 col_data = [(col, str(df[col].dtype)) for col in df.columns]
@@ -163,7 +177,7 @@ def main():
                         col3.write(f"**{col_name}**: {missing}")
                     elif i % 4 == 3:
                         col4.write(f"**{col_name}**: {missing}")
-                st.write("**Descriptive statistics:**")
+            with st.expander("Descriptive Statistics", expanded=False):
                 st.write(df.describe(include='all'))
 
 if __name__ == "__main__":

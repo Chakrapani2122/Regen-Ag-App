@@ -1,4 +1,7 @@
 import streamlit as st
+import warnings
+
+warnings.filterwarnings("ignore")
 
 def main():
     st.markdown("""# 📬 Contact Us

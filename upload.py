@@ -4,6 +4,28 @@ import os
 import requests
 import base64
 from io import StringIO, BytesIO
+import warnings
+
+warnings.filterwarnings("ignore")
+
+def get_github_folders(token):
+    headers = {"Authorization": f"token {token}"}
+    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [item['name'] for item in response.json() if item['type'] == 'dir' and item['name'] != 'Visualizations']
+    return []
+
+def get_folder_contents(token, path):
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        items = response.json()
+        subfolders = [item['name'] for item in items if item['type'] == 'dir']
+        files = [item['name'] for item in items if item['type'] == 'file']
+        return subfolders, files
+    return [], []
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -14,6 +36,15 @@ def validate_github_token(token):
 def main():
     st.title("Upload the Data")
     st.write("*Access only to team members.*")
+    
+    # Upload progress tracking
+    if 'upload_history' not in st.session_state:
+        st.session_state.upload_history = []
+    
+    if st.session_state.upload_history:
+        with st.expander("📋 Recent Uploads"):
+            for upload in st.session_state.upload_history[-5:]:
+                st.write(f"✅ {upload['file']} → {upload['folder']} ({upload['time']})")
 
     # Step 1: Ask for GitHub security token
     token = st.text_input("Enter your security token:", type="password")
@@ -33,6 +64,20 @@ def main():
                                       accept_multiple_files=True)
 
     if uploaded_files:
+        # Data validation summary
+        st.write("### 🔍 Data Validation Summary")
+        validation_col1, validation_col2, validation_col3 = st.columns(3)
+        
+        total_files = len(uploaded_files)
+        valid_files = sum(1 for f in uploaded_files if f.name.endswith(('xls', 'xlsx', 'csv', 'dat', 'txt')))
+        total_size = sum(f.size for f in uploaded_files) / (1024*1024)  # MB
+        
+        with validation_col1:
+            st.metric("Total Files", total_files)
+        with validation_col2:
+            st.metric("Valid Files", valid_files, f"{valid_files-total_files}" if valid_files != total_files else None)
+        with validation_col3:
+            st.metric("Total Size", f"{total_size:.1f} MB")
         
         # Step 4: File selection and sheet selection
         selected_file = st.selectbox("Select a file to view:", uploaded_files, format_func=lambda x: x.name, key="file_select")
@@ -83,22 +128,23 @@ def main():
                         elif i % 4 == 3:
                             col4.write(f"{col_name} : \n{col_type}")
 
-        # Step 5: List folders in the Regen-Ag-Data repository
+        # Step 5: Navigate folder structure for upload destination
         try:
-            headers = {"Authorization": f"token {token}"}
-            url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents"
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            contents = response.json()
-
-            # Exclude the 'Visualizations' folder from the list
-            folders = [content['path'] for content in contents if content['type'] == "dir" and content['path'] != "Visualizations"]
-
-            if not folders:
-                st.warning("No folders found in the repository.")
-                return
-
-            folder_name = st.selectbox("Select a folder to upload the files:", folders)
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                folders = get_github_folders(token)
+                folder_name = st.selectbox("Select a folder to upload the files:", folders)
+            
+            subfolder_name = None
+            
+            if folder_name:
+                subfolders, _ = get_folder_contents(token, folder_name)
+                
+                if subfolders:
+                    with col2:
+                        subfolder_name = st.selectbox("Select a subfolder (optional):", [""] + subfolders)
+                        
         except Exception as e:
             st.error(f"Error fetching folders: {e}")
             return
@@ -107,7 +153,11 @@ def main():
         if st.button("Upload Files"):
             try:
                 for file in uploaded_files:
-                    file_path = os.path.join(folder_name, file.name)
+                    # Construct file path based on folder and subfolder selection
+                    if subfolder_name:
+                        file_path = f"{folder_name}/{subfolder_name}/{file.name}"
+                    else:
+                        file_path = f"{folder_name}/{file.name}"
                     try:
                         # Check if file already exists
                         url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
@@ -126,6 +176,13 @@ def main():
                             })
                             response.raise_for_status()
                             st.success(f"File '{file.name}' uploaded successfully.")
+                            # Add to upload history
+                            from datetime import datetime
+                            st.session_state.upload_history.append({
+                                'file': file.name,
+                                'folder': folder_name,
+                                'time': datetime.now().strftime('%Y-%m-%d %H:%M')
+                            })
                         else:
                             st.error(f"Error checking file existence: {err}")
             except Exception as e:
