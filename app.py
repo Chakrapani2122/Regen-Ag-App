@@ -6,6 +6,7 @@ from upload import main as upload_main
 from view import main as view_main
 from visualize import main as visualize_main
 import display_visualizations
+from visualization import main as visualization_main
 from data_schedule import main as data_schedule_main
 
 # Suppress deprecation warnings
@@ -20,8 +21,7 @@ PAGES = {
     "Home": None,
     "View Data": view_main,
     "Upload Data": upload_main,
-    "Create Visualizations": visualize_main,
-    "View Visualizations": display_visualizations,
+    "Visualizations": visualization_main,
     "About Us": about_main,
     "Contact Us": contact_main,
     "Data Schedule": data_schedule_main

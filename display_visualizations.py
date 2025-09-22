@@ -4,8 +4,20 @@ from xml.etree import ElementTree as ET
 from io import BytesIO
 import base64
 import warnings
+from urllib.parse import quote
 
 warnings.filterwarnings("ignore")
+
+# Helper to render badges safely (fall back if st.badge isn't available)
+def render_badge(text):
+    try:
+        if hasattr(st, 'badge'):
+            st.badge(text, type='secondary')
+        else:
+            st.markdown(f"- {text}")
+    except Exception:
+        # Last-resort fallback
+        st.write(text)
 
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
@@ -13,8 +25,37 @@ def validate_github_token(token):
     response = requests.get(url, headers=headers)
     return response.status_code == 200
 
+
+def display_image_compatible(img_bytesio, caption=None):
+    """Display an image using whatever st.image parameter is supported by the installed Streamlit.
+
+    Tries use_container_width, then use_column_width, then a fixed width.
+    """
+    try:
+        img_bytesio.seek(0)
+    except Exception:
+        pass
+
+    # Try modern parameter first
+    try:
+        return st.image(img_bytesio, caption=caption, use_container_width=True)
+    except TypeError:
+        pass
+
+    # Try older (deprecated but present) parameter
+    try:
+        return st.image(img_bytesio, caption=caption, use_column_width=True)
+    except TypeError:
+        pass
+
+    # Final fallback: fixed width (keeps display stable)
+    try:
+        return st.image(img_bytesio, caption=caption, width=400)
+    except Exception as e:
+        st.warning(f"Unable to display image: {e}")
+        return None
+
 def main():
-    st.title("Created Visualizations")
     
     # Visualization management options
     col1, col2, col3 = st.columns(3)
@@ -25,20 +66,11 @@ def main():
     with col3:
         view_mode = st.selectbox("View mode:", ["Gallery", "List", "Grid"])
 
-    # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter your security token:", type="password")
+    # Use the token saved in session_state (visualization.py handles prompting)
+    token = st.session_state.get('gh_token', None)
     if not token:
-        st.warning("Please provide your security token to proceed.")
+        st.warning("Please provide your security token on the Visualizations page to proceed.")
         return
-
-    if validate_github_token(token):
-        st.success("Token validated successfully!")
-    else:
-        st.error("Invalid token or access issue.")
-        return
-
-    # Replace all github module usage with requests-based API calls as in view.py
-    # For file content, use the API as in view.py
 
     # Step 2: Fetch and parse visualizations.xml
     xml_path = "Visualizations/visualizations.xml"
@@ -91,23 +123,27 @@ def main():
             with col1:
                 # Fetch the image file from GitHub
                 try:
-                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+                    encoded_path = quote(path, safe='')
+                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
                     response = requests.get(url, headers=headers)
                     response.raise_for_status()
-                    file_content = response.json()["content"]
-                    file_content = BytesIO(base64.b64decode(file_content))
-                    st.image(file_content, use_container_width=True)
-                    
+                    file_b64 = response.json().get("content")
+                    if not file_b64:
+                        raise ValueError("No content field in GitHub response")
+                    file_bytes = base64.b64decode(file_b64)
+                    file_content = BytesIO(file_bytes)
+                    display_image_compatible(file_content)
+
                     # Download button for each visualization
                     st.download_button(
                         label="💾 Download",
-                        data=base64.b64decode(response.json()["content"]),
+                        data=file_bytes,
                         file_name=name,
                         mime="image/png",
                         key=f"download_{name}"
                     )
-                except Exception:
-                    st.warning(f"Could not load image: {name}")
+                except Exception as e:
+                    st.warning(f"Could not load image: {name} — {e}")
             with col2:
                 st.subheader(name)
                 st.caption(f"📅 Created: {date}")
@@ -115,11 +151,11 @@ def main():
                 
                 # Tags or categories (if available)
                 if "soil" in description.lower():
-                    st.badge("🌱 Soil Health", type="secondary")
+                    render_badge("🌱 Soil Health")
                 if "crop" in description.lower():
-                    st.badge("🌾 Crops", type="secondary")
+                    render_badge("🌾 Crops")
                 if "trend" in description.lower():
-                    st.badge("📈 Trends", type="secondary")
+                    render_badge("📈 Trends")
             st.markdown("---")
     
     elif view_mode == "Grid":
@@ -132,16 +168,20 @@ def main():
                 date = image.findtext("Date", "")
                 
                 try:
-                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}"
+                    encoded_path = quote(path, safe='')
+                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
                     response = requests.get(url, headers=headers)
                     response.raise_for_status()
-                    file_content = response.json()["content"]
-                    file_content = BytesIO(base64.b64decode(file_content))
-                    st.image(file_content, use_container_width=True)
+                    file_b64 = response.json().get("content")
+                    if not file_b64:
+                        raise ValueError("No content field in GitHub response")
+                    file_bytes = base64.b64decode(file_b64)
+                    file_content = BytesIO(file_bytes)
+                    display_image_compatible(file_content)
                     st.caption(f"**{name}**")
                     st.caption(f"{date}")
-                except Exception:
-                    st.warning(f"Could not load: {name}")
+                except Exception as e:
+                    st.warning(f"Could not load: {name} — {e}")
     
     else:  # List view
         for image in filtered_images:

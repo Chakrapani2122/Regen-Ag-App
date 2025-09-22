@@ -67,15 +67,21 @@ def main():
     st.title("View Data")
     st.write("*Access only to team members.*")
 
-    token = st.text_input("Enter your security token:", type="password")
+    # Use or ask for token: allow the user to provide it here (will be saved to session)
+    token = st.session_state.get('gh_token', None)
     if not token:
-        st.warning("Please provide your security token to proceed.")
-        return
-
-    if not validate_github_token(token):
-        st.error("Invalid token or access issue.")
-        return
-    st.success("Token validated successfully!")
+        entered = st.text_input("Enter your security token:", type="password", key="view_token")
+        if entered:
+            if validate_github_token(entered):
+                st.session_state['gh_token'] = entered
+                st.success("Token validated and saved for this session.")
+                token = entered
+            else:
+                st.error("Invalid token or access issue.")
+                return
+        else:
+            st.warning("Please provide your security token to proceed.")
+            return
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
