@@ -34,9 +34,24 @@ def validate_github_token(token):
     return response.status_code == 200
 
 def main():
-    st.title("Upload the Data")
-    st.write("*Access only to team members.*")
+    st.title("Upload Data")
     
+    # Use or ask for token: allow the user to provide it here (will be saved to session)
+    token = st.session_state.get('gh_token', None)
+    if not token:
+        entered = st.text_input("Enter your security token:", type="password", key="upload_token")
+        if entered:
+            if validate_github_token(entered):
+                st.session_state['gh_token'] = entered
+                st.success("Token validated and saved for this session.")
+                token = entered
+            else:
+                st.error("Invalid token or access issue.")
+                return
+        else:
+            st.warning("Please provide your security token to proceed.")
+            return
+
     # Upload progress tracking
     if 'upload_history' not in st.session_state:
         st.session_state.upload_history = []
@@ -45,18 +60,6 @@ def main():
         with st.expander("📋 Recent Uploads"):
             for upload in st.session_state.upload_history[-5:]:
                 st.write(f"✅ {upload['file']} → {upload['folder']} ({upload['time']})")
-
-    # Step 1: Ask for GitHub security token
-    token = st.text_input("Enter your security token:", type="password")
-    if not token:
-        st.warning("Please provide your security token to proceed.")
-        return
-
-    if validate_github_token(token):
-        st.success("Token validated successfully!")
-    else:
-        st.error("Invalid token or access issue.")
-        return
 
     # Step 3: File upload
     uploaded_files = st.file_uploader("Select files to upload (xls, xlsx, csv, dat, txt):", 

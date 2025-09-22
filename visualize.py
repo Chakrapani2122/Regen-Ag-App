@@ -49,19 +49,11 @@ def get_github_file_content(token, path, file):
     return None
 
 def main():
-    st.title("Visualize Your Data")
-    st.write("*Access only to team members.*")
 
-    # Step 1: GitHub Token Validation
-    token = st.text_input("Enter your security token:", type="password")
+    # Use token provided in session_state by the wrapper page
+    token = st.session_state.get('gh_token', None)
     if not token:
-        st.warning("Please provide your security token to proceed.")
-        return
-
-    if validate_github_token(token):
-        st.success("Token validated successfully!")
-    else:
-        st.error("Invalid token or access issue.")
+        st.warning("Please provide your security token on the Visualizations page to proceed.")
         return
 
     # Step 2: File Selection
