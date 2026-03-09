@@ -217,26 +217,7 @@ Regen-Ag-App/
 
 ## Installation
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Chakrapani2122/Regen-Ag-App.git
-cd Regen-Ag-App
-```
-
-### 2. Create a Virtual Environment (Recommended)
-
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
