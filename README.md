@@ -1,12 +1,6 @@
 # KSURA — Kansas State University Regenerative Agriculture Web Application
 
-<p align="center">
-  <img src="assets/logo.png" alt="KSURA Logo" width="120"/>
-</p>
-
-<p align="center">
-  <strong>A Streamlit-based web application for managing, visualizing, and analyzing regenerative agriculture research data at Kansas State University.</strong>
-</p>
+A Streamlit-based web application for managing, visualizing, and analyzing regenerative agriculture research data at Kansas State University.
 
 ---
 
@@ -126,18 +120,18 @@ The platform is built with [Streamlit](https://streamlit.io/) and integrates dir
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Streamlit Frontend                     │
-│  ┌──────┐ ┌──────┐ ┌──────────┐ ┌───────┐ ┌──────────┐ │
-│  │ Home │ │ View │ │  Upload  │ │ Viz   │ │ Schedule │ │
-│  └──────┘ └──┬───┘ └────┬─────┘ └───┬───┘ └────┬─────┘ │
-│              │          │           │           │        │
-│              ▼          ▼           ▼           ▼        │
-│         ┌─────────────────────────────────┐    Local     │
-│         │     GitHub REST API (v3)        │    Excel     │
-│         │     Authentication via Token    │    File      │
-│         └──────────────┬──────────────────┘              │
-│                        │                                 │
-└────────────────────────┼─────────────────────────────────┘
+│                    Streamlit Frontend                   │
+│  ┌──────┐ ┌──────┐ ┌──────────┐ ┌───────┐ ┌──────────┐  │
+│  │ Home │ │ View │ │  Upload  │ │ Viz   │ │ Schedule │  │
+│  └──────┘ └──┬───┘ └────┬─────┘ └───┬───┘ └────┬─────   │
+│              │          │           │          │        │
+│              ▼          ▼           ▼          ▼        │
+│         ┌─────────────────────────────────┐   Local     │
+│         │     GitHub REST API (v3)        │   Excel     │
+│         │     Authentication via Token    │   File      │
+│         └──────────────┬──────────────────┘             │
+│                        │                                │
+└────────────────────────┼────────────────────────────────┘
                          │
                          ▼
               ┌─────────────────────┐
