@@ -10,7 +10,7 @@ from urllib.parse import quote
 warnings.filterwarnings("ignore")
 
 GITHUB_REPO_API_UPLOAD = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
-_UPLOAD_HERE = "Upload to this folder: "
+_UPLOAD_HERE = "Select Folder"
 
 
 def render_folder_navigation(token):
