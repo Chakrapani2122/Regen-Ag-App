@@ -14,6 +14,8 @@ from urllib.parse import quote
 
 warnings.filterwarnings("ignore")
 
+ROOT_EXCLUDED_FILES_VIZ = {".gitattributes", ".gitignore"}
+
 def validate_github_token(token):
     headers = {"Authorization": f"token {token}"}
     url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
@@ -57,6 +59,8 @@ def get_repo_contents_viz(token, path=""):
                 continue
             folders.append(item['name'])
         elif item['type'] == 'file':
+            if not path and item['name'] in ROOT_EXCLUDED_FILES_VIZ:
+                continue
             files.append(item['name'])
     return sorted(folders), sorted(files)
 

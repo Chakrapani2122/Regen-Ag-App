@@ -12,6 +12,7 @@ import base64
 warnings.filterwarnings("ignore")
 
 ROOT_EXCLUDED_FOLDERS = {"Visualizations"}
+ROOT_EXCLUDED_FILES = {".gitattributes", ".gitignore"}
 GITHUB_REPO_API = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
 
 def github_headers(token, accept=None):
@@ -60,6 +61,8 @@ def get_repo_contents(token, path=""):
                 continue
             folders.append(item['name'])
         elif item['type'] == 'file':
+            if not path and item['name'] in ROOT_EXCLUDED_FILES:
+                continue
             files.append(item['name'])
 
     return sorted(folders), sorted(files)
