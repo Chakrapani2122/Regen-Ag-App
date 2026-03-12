@@ -10,6 +10,7 @@ from datetime import datetime
 import base64
 import warnings
 import numpy as np
+from urllib.parse import quote
 
 warnings.filterwarnings("ignore")
 
@@ -38,15 +39,128 @@ def get_folder_contents(token, path):
         return subfolders, files
     return [], []
 
+GITHUB_REPO_API_VIZ = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+
+
+def get_repo_contents_viz(token, path=""):
+    encoded = quote(path, safe='/') if path else ""
+    base = f"{GITHUB_REPO_API_VIZ}/contents"
+    url = f"{base}/{encoded}" if encoded else base
+    response = requests.get(url, headers={"Authorization": f"token {token}"}, timeout=30)
+    if response.status_code != 200:
+        return [], []
+    items = response.json()
+    folders, files = [], []
+    for item in items:
+        if item['type'] == 'dir':
+            if not path and item['name'] == 'Visualizations':
+                continue
+            folders.append(item['name'])
+        elif item['type'] == 'file':
+            files.append(item['name'])
+    return sorted(folders), sorted(files)
+
+
+def get_viz_file_content(token, path, file):
+    file_path = f"{path}/{file}" if path else file
+    encoded = quote(file_path, safe='/')
+    url = f"{GITHUB_REPO_API_VIZ}/contents/{encoded}"
+    response = requests.get(url, headers={"Authorization": f"token {token}"}, timeout=30)
+    if response.status_code != 200:
+        return None, f"GitHub returned status {response.status_code}"
+    try:
+        metadata = response.json()
+    except ValueError:
+        return None, "Invalid JSON from GitHub"
+
+    if metadata.get("encoding") == "base64" and metadata.get("content"):
+        try:
+            return base64.b64decode(metadata["content"]), None
+        except Exception as exc:
+            return None, f"Base64 decode error: {exc}"
+
+    download_url = metadata.get("download_url")
+    if download_url:
+        r = requests.get(download_url, headers={"Authorization": f"token {token}"}, timeout=60)
+        if r.status_code == 200:
+            return r.content, None
+        return None, f"Download URL returned status {r.status_code}"
+
+    r = requests.get(
+        url,
+        headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.raw"},
+        timeout=60,
+    )
+    if r.status_code == 200:
+        return r.content, None
+    return None, f"Raw content request returned status {r.status_code}"
+
+
+def render_viz_file_navigation(token):
+    levels = []
+    current_path = ""
+    breadcrumbs = []
+    level = 0
+
+    while True:
+        folders, files = get_repo_contents_viz(token, current_path)
+        options = [""] + [f"[Folder] {f}" for f in folders] + [f"[File] {f}" for f in files]
+        if len(options) == 1:
+            break
+
+        key = f"viz_nav_level_{level}"
+        label = "Select a folder or file:" if level == 0 else f"Level {level + 1}:"
+
+        if key in st.session_state and st.session_state[key] not in options:
+            st.session_state[key] = ""
+
+        levels.append((label, options, key))
+
+        stored = st.session_state.get(key, "")
+        if not stored:
+            break
+
+        item_type, item_name = stored.split("] ", 1)
+        if item_type == "[Folder":
+            breadcrumbs.append(item_name)
+            current_path = "/".join(breadcrumbs)
+            level += 1
+        else:
+            break
+
+    for row_start in range(0, len(levels), 3):
+        row_levels = levels[row_start:row_start + 3]
+        cols = st.columns(3)
+        for col_idx, (lbl, opts, k) in enumerate(row_levels):
+            with cols[col_idx]:
+                st.selectbox(lbl, opts, key=k,
+                             format_func=lambda item: item or "Choose an item")
+
+    breadcrumbs = []
+    selected_file = None
+    for _, _, k in levels:
+        stored = st.session_state.get(k, "")
+        if not stored:
+            break
+        item_type, item_name = stored.split("] ", 1)
+        if item_type == "[Folder":
+            breadcrumbs.append(item_name)
+        else:
+            selected_file = item_name
+            break
+
+    selected_path = "/".join(breadcrumbs)
+    selected_file_path = (
+        f"{selected_path}/{selected_file}" if selected_path and selected_file else selected_file
+    )
+    return selected_path, selected_file, selected_file_path
+
+
+# Legacy stub kept for any future internal call-sites
 def get_github_file_content(token, path, file):
-    headers = {"Authorization": f"token {token}"}
-    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{path}/{file}"
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        import base64
-        content = response.json()['content']
-        return base64.b64decode(content)
-    return None
+    content, _ = get_viz_file_content(token, path, file)
+    return content
+
 
 def main():
 
@@ -70,49 +184,34 @@ def main():
                 sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
                 df = excel_data.parse(sheet_name) if sheet_name else None
     elif action == "Select a file":
-        try:
-            col1, col2, col3, col4 = st.columns(4)
+        selected_path, file_name, selected_file_path = render_viz_file_navigation(token)
+        if selected_file_path:
+            st.caption(f"Selected: {selected_file_path}")
 
-            with col1:
-                folders = get_github_folders(token)
-                folder_name = st.selectbox("Select a folder:", folders)
-
-            subfolder_name = None
-            file_name = None
-            
-            if folder_name:
-                subfolders, files_in_folder = get_folder_contents(token, folder_name)
-                
-                if subfolders:
-                    with col2:
-                        subfolder_name = st.selectbox("Select a subfolder:", [""] + subfolders)
-                    
-                    if subfolder_name:
-                        _, files_in_subfolder = get_folder_contents(token, f"{folder_name}/{subfolder_name}")
-                        with col3:
-                            file_name = st.selectbox("Select a file:", files_in_subfolder)
-                else:
-                    with col2:
-                        file_name = st.selectbox("Select a file:", files_in_folder)
-
-            if file_name:
-                path = f"{folder_name}/{subfolder_name}" if subfolder_name else folder_name
-                file_content = get_github_file_content(token, path, file_name)
-                
+        if file_name:
+            file_content, file_error = get_viz_file_content(token, selected_path, file_name)
+            if file_content is None:
+                st.error(f"Unable to load: {selected_file_path or file_name}")
+                if file_error:
+                    st.caption(f"Details: {file_error}")
+            else:
                 if file_name.endswith(("xls", "xlsx")):
-                    if file_content:
+                    try:
                         excel_data = pd.ExcelFile(BytesIO(file_content))
-                        with col4:
-                            sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names)
+                        sheet_name = st.selectbox("Select a sheet:", excel_data.sheet_names, key="viz_sheet")
                         if sheet_name:
                             df = excel_data.parse(sheet_name)
+                    except Exception as exc:
+                        st.error(f"Unable to read Excel file: {exc}")
                 elif file_name.endswith(("csv", "dat", "txt")):
-                    if file_content:
-                        df = pd.read_csv(StringIO(file_content.decode("utf-8")))
-
-        except Exception as e:
-            st.error(f"Error fetching repository contents: {e}")
-            return
+                    for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+                        try:
+                            df = pd.read_csv(StringIO(file_content.decode(enc)))
+                            break
+                        except Exception:
+                            continue
+                    if df is None:
+                        st.error("Unable to parse the file.")
 
     if df is not None:
         with st.expander("Data Preview", expanded=True):

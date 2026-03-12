@@ -5,8 +5,76 @@ import requests
 import base64
 from io import StringIO, BytesIO
 import warnings
+from urllib.parse import quote
 
 warnings.filterwarnings("ignore")
+
+GITHUB_REPO_API_UPLOAD = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
+_UPLOAD_HERE = "Upload to this folder: "
+
+
+def render_folder_navigation(token):
+    """Navigate repository folders for selecting an upload destination.
+    Returns the selected destination path as a string."""
+    levels = []
+    current_path = ""
+    breadcrumbs = []
+    level = 0
+
+    while True:
+        encoded = quote(current_path, safe='/') if current_path else ""
+        base = f"{GITHUB_REPO_API_UPLOAD}/contents"
+        url = f"{base}/{encoded}" if encoded else base
+        response = requests.get(url, headers={"Authorization": f"token {token}"}, timeout=30)
+        if response.status_code != 200:
+            break
+
+        items = response.json()
+        folders = sorted([
+            item['name'] for item in items
+            if item['type'] == 'dir'
+            and not (level == 0 and item['name'] == 'Visualizations')
+        ])
+        if not folders:
+            break
+
+        options = [_UPLOAD_HERE] + [f"[Folder] {f}" for f in folders]
+        key = f"upload_dest_level_{level}"
+        label = "Select destination folder:" if level == 0 else f"Subfolder (Level {level + 1}):"
+
+        if key in st.session_state and st.session_state[key] not in options:
+            st.session_state[key] = _UPLOAD_HERE
+
+        levels.append((label, options, key))
+
+        stored = st.session_state.get(key, _UPLOAD_HERE)
+        if not stored or stored == _UPLOAD_HERE:
+            break
+
+        _, folder_name = stored.split("] ", 1)
+        breadcrumbs.append(folder_name)
+        current_path = "/".join(breadcrumbs)
+        level += 1
+
+    # Render in 3-column grid
+    for row_start in range(0, len(levels), 3):
+        row_levels = levels[row_start:row_start + 3]
+        cols = st.columns(3)
+        for col_idx, (lbl, opts, k) in enumerate(row_levels):
+            with cols[col_idx]:
+                st.selectbox(lbl, opts, key=k)
+
+    # Re-walk session_state to derive final destination path
+    dest_path = ""
+    for _, _, k in levels:
+        stored = st.session_state.get(k, _UPLOAD_HERE)
+        if not stored or stored == _UPLOAD_HERE:
+            break
+        _, folder_name = stored.split("] ", 1)
+        dest_path = f"{dest_path}/{folder_name}" if dest_path else folder_name
+
+    return dest_path
+
 
 def get_github_folders(token):
     headers = {"Authorization": f"token {token}"}
@@ -57,9 +125,9 @@ def main():
         st.session_state.upload_history = []
     
     if st.session_state.upload_history:
-        with st.expander("📋 Recent Uploads"):
+        with st.expander("Recent Uploads"):
             for upload in st.session_state.upload_history[-5:]:
-                st.write(f"✅ {upload['file']} → {upload['folder']} ({upload['time']})")
+                st.write(f"{upload['file']} → {upload['folder']} ({upload['time']})")
 
     # Step 3: File upload
     uploaded_files = st.file_uploader("Select files to upload (xls, xlsx, csv, dat, txt):", 
@@ -68,7 +136,7 @@ def main():
 
     if uploaded_files:
         # Data validation summary
-        st.write("### 🔍 Data Validation Summary")
+        st.write("### Data Validation Summary")
         validation_col1, validation_col2, validation_col3 = st.columns(3)
         
         total_files = len(uploaded_files)
@@ -132,46 +200,33 @@ def main():
                             col4.write(f"{col_name} : \n{col_type}")
 
         # Step 5: Navigate folder structure for upload destination
-        try:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                folders = get_github_folders(token)
-                folder_name = st.selectbox("Select a folder to upload the files:", folders)
-            
-            subfolder_name = None
-            
-            if folder_name:
-                subfolders, _ = get_folder_contents(token, folder_name)
-                
-                if subfolders:
-                    with col2:
-                        subfolder_name = st.selectbox("Select a subfolder (optional):", [""] + subfolders)
-                        
-        except Exception as e:
-            st.error(f"Error fetching folders: {e}")
-            return
+        st.write("### Select Upload Destination")
+        dest_path = render_folder_navigation(token)
+        if dest_path:
+            st.caption(f"Upload destination: **{dest_path}**")
+        else:
+            st.info("Select a destination folder above.")
 
         # Step 6: Upload files to GitHub repository
         if st.button("Upload Files"):
+            if not dest_path:
+                st.warning("Please select a destination folder before uploading.")
+                return
             try:
                 for file in uploaded_files:
-                    # Construct file path based on folder and subfolder selection
-                    if subfolder_name:
-                        file_path = f"{folder_name}/{subfolder_name}/{file.name}"
-                    else:
-                        file_path = f"{folder_name}/{file.name}"
+                    file_path = f"{dest_path}/{file.name}"
+                    encoded_fp = quote(file_path, safe='/')
                     try:
                         # Check if file already exists
-                        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
+                        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_fp}"
                         response = requests.get(url, headers={"Authorization": f"token {token}"})
                         response.raise_for_status()
-                        st.warning(f"File '{file.name}' already exists at '{folder_name}'.")
+                        st.warning(f"File '{file.name}' already exists at '{dest_path}'.")
                     except requests.exceptions.HTTPError as err:
                         if err.response.status_code == 404:
                             # File does not exist, proceed with upload
                             content = file.getvalue()
-                            url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{file_path}"
+                            url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_fp}"
                             response = requests.put(url, headers={"Authorization": f"token {token}"}, json={
                                 "message": f"Add {file.name}",
                                 "content": base64.b64encode(content).decode("utf-8"),
@@ -183,7 +238,7 @@ def main():
                             from datetime import datetime
                             st.session_state.upload_history.append({
                                 'file': file.name,
-                                'folder': folder_name,
+                                'folder': dest_path,
                                 'time': datetime.now().strftime('%Y-%m-%d %H:%M')
                             })
                         else:
