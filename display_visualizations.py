@@ -62,7 +62,7 @@ def main():
     with col1:
         sort_by = st.selectbox("Sort by:", ["Date (Newest)", "Date (Oldest)", "Name (A-Z)", "Name (Z-A)"])
     with col2:
-        search_viz = st.text_input("🔍 Search visualizations:", placeholder="Search by name or description", key="search_viz")
+        search_viz = st.text_input("Search:", placeholder="Search by name or description", key="search_viz")
     with col3:
         view_mode = st.selectbox("View mode:", ["Gallery", "List", "Grid"])
 
@@ -136,7 +136,7 @@ def main():
 
                     # Download button for each visualization
                     st.download_button(
-                        label="💾 Download",
+                        label="Download",
                         data=file_bytes,
                         file_name=name,
                         mime="image/png",
@@ -146,16 +146,16 @@ def main():
                     st.warning(f"Could not load image: {name} — {e}")
             with col2:
                 st.subheader(name)
-                st.caption(f"📅 Created: {date}")
+                st.caption(f"Created: {date}")
                 st.write(description)
                 
                 # Tags or categories (if available)
                 if "soil" in description.lower():
-                    render_badge("🌱 Soil Health")
+                    render_badge("Soil Health")
                 if "crop" in description.lower():
-                    render_badge("🌾 Crops")
+                    render_badge("Crops")
                 if "trend" in description.lower():
-                    render_badge("📈 Trends")
+                    render_badge("Trends")
             st.markdown("---")
     
     elif view_mode == "Grid":
@@ -180,23 +180,54 @@ def main():
                     display_image_compatible(file_content)
                     st.caption(f"**{name}**")
                     st.caption(f"{date}")
+                    st.download_button(
+                        label="Download",
+                        data=file_bytes,
+                        file_name=name,
+                        mime="image/png",
+                        key=f"download_grid_{name}_{i}"
+                    )
                 except Exception as e:
                     st.warning(f"Could not load: {name} — {e}")
     
     else:  # List view
-        for image in filtered_images:
+        for i, image in enumerate(filtered_images):
             name = image.findtext("Name", "")
+            path = image.findtext("Path", "")
             description = image.findtext("Description", "")
             date = image.findtext("Date", "")
-            
+
+            file_bytes = None
+            try:
+                encoded_path = quote(path, safe='')
+                url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                file_b64 = response.json().get("content")
+                if file_b64:
+                    file_bytes = base64.b64decode(file_b64)
+            except Exception:
+                pass
+
             with st.container():
-                col1, col2, col3 = st.columns([3, 6, 2])
+                col1, col2, col3, col4 = st.columns([3, 5, 2, 2])
                 with col1:
                     st.write(f"**{name}**")
                 with col2:
                     st.write(description[:100] + "..." if len(description) > 100 else description)
                 with col3:
                     st.write(date)
+                with col4:
+                    if file_bytes:
+                        st.download_button(
+                            label="Download",
+                            data=file_bytes,
+                            file_name=name,
+                            mime="image/png",
+                            key=f"download_list_{name}_{i}"
+                        )
+                    else:
+                        st.caption("Unavailable")
             st.markdown("---")
 
 if __name__ == "__main__":

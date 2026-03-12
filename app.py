@@ -41,38 +41,38 @@ if selection == "Home":
 
 
     
-    st.write("## 🌾 Welcome to KSURA")
+    st.write("## Welcome to KSURA")
     st.image("assets/team.png")
     st.markdown("""At **Kansas State University Regenerative Agriculture (KSURA)**, we're building a more sustainable future for farming in Kansas and beyond. 🌍 We're proud to collaborate with farmers, researchers, policymakers, and consumers to promote practices that restore soil health, boost biodiversity, and strengthen ecosystem services. 🌱
 
-## 🚜 What We Do
+## What We Do
 
 Our team is dedicated to advancing **regenerative agriculture** — a transformative approach to farming that improves soil, increases resilience, and enhances food systems. Through cutting-edge research, education, and partnerships, we're creating climate-smart, profitable solutions for today's challenges.
 
-## 🌿 Our Principles
+## Our Principles
 
 We follow six key principles of regenerative agriculture:
-- 🌾 Maximize diversity
-- 🚜 Reduce tillage
-- 🍀 Keep the soil covered
-- 🌱 Maintain living roots
-- 🐄 Integrate livestock
-- 🌎 Tailor to local ecosystems
+- Maximize diversity
+- Reduce tillage
+- Keep the soil covered
+- Maintain living roots
+- Integrate livestock
+- Tailor to local ecosystems
 
-These principles help **restore soil health, sequester carbon, and build resilient farms** that thrive with nature, not against it. 🌻
+These principles help **restore soil health, sequester carbon, and build resilient farms** that thrive with nature, not against it.
 
-## 🤝 Get Involved
+## Get Involved
 
-Join us through the **Kansas Soil Health Network (KSHN)**! 🌾  
+Join us through the **Kansas Soil Health Network (KSHN)**!
 We're helping farmers adopt proven soil-friendly practices with support from partners like USDA, Kansas Corn Commission, and The Nature Conservancy.
 
-- 🔬 On-farm trials & research
-- 🌱 Demonstration farms
-- 💰 Market opportunities for nutrient-rich crops
+- On-farm trials & research
+- Demonstration farms
+- Market opportunities for nutrient-rich crops
 
 ---
 
-**Together, let's grow a more regenerative future. 🌾💚**
+**Together, let's grow a more regenerative future.**
     """)
     
     
