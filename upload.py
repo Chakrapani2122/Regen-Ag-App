@@ -6,11 +6,46 @@ import base64
 from io import StringIO, BytesIO
 import warnings
 from urllib.parse import quote
+from github_client import get_github_client
 
 warnings.filterwarnings("ignore")
 
 GITHUB_REPO_API_UPLOAD = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
 _UPLOAD_HERE = "Select Folder"
+
+
+@st.cache_data(show_spinner=False, ttl=120)
+def get_upload_folders_cached(token, path=""):
+    client = get_github_client(token)
+    items, error, auth_error = client.list_contents(path)
+    if items is None:
+        return [], error, auth_error
+
+    folders = sorted([
+        item['name'] for item in items
+        if item['type'] == 'dir'
+    ])
+    return folders, None, False
+
+
+def nav_option_value(item_type, name):
+    return f"{item_type}|{name}"
+
+
+def parse_nav_option(option):
+    if not option or "|" not in option:
+        return None, None
+    item_type, item_name = option.split("|", 1)
+    return item_type, item_name
+
+
+def format_upload_nav_option(option):
+    if not option or option == _UPLOAD_HERE:
+        return _UPLOAD_HERE
+    item_type, item_name = parse_nav_option(option)
+    if item_type == "folder":
+        return f"📁 {item_name}"
+    return option
 
 
 def render_folder_navigation(token):
@@ -22,23 +57,21 @@ def render_folder_navigation(token):
     level = 0
 
     while True:
-        encoded = quote(current_path, safe='/') if current_path else ""
-        base = f"{GITHUB_REPO_API_UPLOAD}/contents"
-        url = f"{base}/{encoded}" if encoded else base
-        response = requests.get(url, headers={"Authorization": f"token {token}"}, timeout=30)
-        if response.status_code != 200:
+        folders, error, auth_error = get_upload_folders_cached(token, current_path)
+        if auth_error:
+            st.session_state['gh_token'] = None
+            st.session_state['gh_token_validated'] = False
+            st.error("Authentication failed. Please re-enter your security token.")
+            break
+        if error:
+            st.warning(error)
             break
 
-        items = response.json()
-        folders = sorted([
-            item['name'] for item in items
-            if item['type'] == 'dir'
-            and not (level == 0 and item['name'] == 'Visualizations')
-        ])
+        folders = [f for f in folders if not (level == 0 and f == 'Visualizations')]
         if not folders:
             break
 
-        options = [_UPLOAD_HERE] + [f"[Folder] {f}" for f in folders]
+        options = [_UPLOAD_HERE] + [nav_option_value("folder", f) for f in folders]
         key = f"upload_dest_level_{level}"
         label = "Select destination folder:" if level == 0 else f"Subfolder (Level {level + 1}):"
 
@@ -51,7 +84,7 @@ def render_folder_navigation(token):
         if not stored or stored == _UPLOAD_HERE:
             break
 
-        _, folder_name = stored.split("] ", 1)
+        _, folder_name = parse_nav_option(stored)
         breadcrumbs.append(folder_name)
         current_path = "/".join(breadcrumbs)
         level += 1
@@ -62,7 +95,7 @@ def render_folder_navigation(token):
         cols = st.columns(3)
         for col_idx, (lbl, opts, k) in enumerate(row_levels):
             with cols[col_idx]:
-                st.selectbox(lbl, opts, key=k)
+                st.selectbox(lbl, opts, key=k, format_func=format_upload_nav_option)
 
     # Re-walk session_state to derive final destination path
     dest_path = ""
@@ -70,7 +103,7 @@ def render_folder_navigation(token):
         stored = st.session_state.get(k, _UPLOAD_HERE)
         if not stored or stored == _UPLOAD_HERE:
             break
-        _, folder_name = stored.split("] ", 1)
+        _, folder_name = parse_nav_option(stored)
         dest_path = f"{dest_path}/{folder_name}" if dest_path else folder_name
 
     return dest_path
@@ -96,10 +129,8 @@ def get_folder_contents(token, path):
     return [], []
 
 def validate_github_token(token):
-    headers = {"Authorization": f"token {token}"}
-    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
-    response = requests.get(url, headers=headers)
-    return response.status_code == 200
+    client = get_github_client(token)
+    return client.validate_token()
 
 def main():
     st.title("Upload Data")
@@ -111,6 +142,7 @@ def main():
         if entered:
             if validate_github_token(entered):
                 st.session_state['gh_token'] = entered
+                st.session_state['gh_token_validated'] = True
                 st.success("Token validated and saved for this session.")
                 token = entered
             else:
@@ -130,11 +162,14 @@ def main():
                 st.write(f"{upload['file']} → {upload['folder']} ({upload['time']})")
 
     # Step 3: File upload
-    uploaded_files = st.file_uploader("Select files to upload (xls, xlsx, csv, dat, txt):", 
-                                      type=["xls", "xlsx", "csv", "dat", "txt"], 
-                                      accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Select files to upload (xls, xlsx, csv, dat, txt):",
+                                      type=["xls", "xlsx", "csv", "dat", "txt"],
+                                      accept_multiple_files=True,
+                                      key="upload_files_widget")
 
     if uploaded_files:
+        client = get_github_client(token)
+
         # Data validation summary
         st.write("### Data Validation Summary")
         validation_col1, validation_col2, validation_col3 = st.columns(3)
@@ -215,33 +250,42 @@ def main():
             try:
                 for file in uploaded_files:
                     file_path = f"{dest_path}/{file.name}"
-                    encoded_fp = quote(file_path, safe='/')
-                    try:
-                        # Check if file already exists
-                        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_fp}"
-                        response = requests.get(url, headers={"Authorization": f"token {token}"})
-                        response.raise_for_status()
+                    metadata, metadata_error, metadata_auth_error = client.get_file_metadata(file_path)
+                    if metadata_auth_error:
+                        st.session_state['gh_token'] = None
+                        st.session_state['gh_token_validated'] = False
+                        st.error("Authentication failed. Please re-enter your security token.")
+                        return
+
+                    if metadata:
                         st.warning(f"File '{file.name}' already exists at '{dest_path}'.")
-                    except requests.exceptions.HTTPError as err:
-                        if err.response.status_code == 404:
-                            # File does not exist, proceed with upload
-                            content = file.getvalue()
-                            url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_fp}"
-                            response = requests.put(url, headers={"Authorization": f"token {token}"}, json={
-                                "message": f"Add {file.name}",
-                                "content": base64.b64encode(content).decode("utf-8"),
-                                "path": file_path
-                            })
-                            response.raise_for_status()
-                            st.success(f"File '{file.name}' uploaded successfully.")
-                            # Add to upload history
-                            from datetime import datetime
-                            st.session_state.upload_history.append({
-                                'file': file.name,
-                                'folder': dest_path,
-                                'time': datetime.now().strftime('%Y-%m-%d %H:%M')
-                            })
-                        else:
-                            st.error(f"Error checking file existence: {err}")
+                        continue
+
+                    if metadata_error and "status 404" not in metadata_error:
+                        st.error(f"Error checking file existence: {metadata_error}")
+                        continue
+
+                    content = file.getvalue()
+                    _, upload_error, upload_auth_error = client.put_file(
+                        file_path=file_path,
+                        message=f"Add {file.name}",
+                        content_b64=base64.b64encode(content).decode("utf-8"),
+                    )
+                    if upload_auth_error:
+                        st.session_state['gh_token'] = None
+                        st.session_state['gh_token_validated'] = False
+                        st.error("Authentication failed. Please re-enter your security token.")
+                        return
+                    if upload_error:
+                        st.error(f"Error uploading '{file.name}': {upload_error}")
+                        continue
+
+                    st.success(f"File '{file.name}' uploaded successfully.")
+                    from datetime import datetime
+                    st.session_state.upload_history.append({
+                        'file': file.name,
+                        'folder': dest_path,
+                        'time': datetime.now().strftime('%Y-%m-%d %H:%M')
+                    })
             except Exception as e:
                 st.error(f"Error uploading files: {e}")
