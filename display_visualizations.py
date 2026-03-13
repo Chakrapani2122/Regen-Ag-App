@@ -1,10 +1,9 @@
 import streamlit as st
-import requests
 from xml.etree import ElementTree as ET
 from io import BytesIO
 import base64
 import warnings
-from urllib.parse import quote
+from github_client import get_github_client
 
 warnings.filterwarnings("ignore")
 
@@ -20,10 +19,8 @@ def render_badge(text):
         st.write(text)
 
 def validate_github_token(token):
-    headers = {"Authorization": f"token {token}"}
-    url = "https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data"
-    response = requests.get(url, headers=headers)
-    return response.status_code == 200
+    client = get_github_client(token)
+    return client.validate_token()
 
 
 def display_image_compatible(img_bytesio, caption=None):
@@ -75,12 +72,17 @@ def main():
     # Step 2: Fetch and parse visualizations.xml
     xml_path = "Visualizations/visualizations.xml"
     try:
-        headers = {"Authorization": f"token {token}"}
-        url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{xml_path}"
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        xml_content = response.json()["content"]
-        xml_content = BytesIO(base64.b64decode(xml_content))
+        client = get_github_client(token)
+        xml_bytes, xml_error, auth_error, _ = client.get_file_content(xml_path)
+        if auth_error:
+            st.session_state['gh_token'] = None
+            st.session_state['gh_token_validated'] = False
+            st.error("Authentication failed. Please re-enter your security token.")
+            return
+        if xml_bytes is None:
+            raise ValueError(xml_error or "Could not load visualization catalog.")
+
+        xml_content = BytesIO(xml_bytes)
         tree = ET.parse(xml_content)
         root = tree.getroot()
 
@@ -123,14 +125,9 @@ def main():
             with col1:
                 # Fetch the image file from GitHub
                 try:
-                    encoded_path = quote(path, safe='')
-                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
-                    response = requests.get(url, headers=headers)
-                    response.raise_for_status()
-                    file_b64 = response.json().get("content")
-                    if not file_b64:
-                        raise ValueError("No content field in GitHub response")
-                    file_bytes = base64.b64decode(file_b64)
+                    file_bytes, file_error, _, _ = client.get_file_content(path)
+                    if file_bytes is None:
+                        raise ValueError(file_error or "Missing file content")
                     file_content = BytesIO(file_bytes)
                     display_image_compatible(file_content)
 
@@ -168,14 +165,9 @@ def main():
                 date = image.findtext("Date", "")
                 
                 try:
-                    encoded_path = quote(path, safe='')
-                    url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
-                    response = requests.get(url, headers=headers)
-                    response.raise_for_status()
-                    file_b64 = response.json().get("content")
-                    if not file_b64:
-                        raise ValueError("No content field in GitHub response")
-                    file_bytes = base64.b64decode(file_b64)
+                    file_bytes, file_error, _, _ = client.get_file_content(path)
+                    if file_bytes is None:
+                        raise ValueError(file_error or "Missing file content")
                     file_content = BytesIO(file_bytes)
                     display_image_compatible(file_content)
                     st.caption(f"**{name}**")
@@ -199,13 +191,7 @@ def main():
 
             file_bytes = None
             try:
-                encoded_path = quote(path, safe='')
-                url = f"https://api.github.com/repos/Chakrapani2122/Regen-Ag-Data/contents/{encoded_path}"
-                response = requests.get(url, headers=headers)
-                response.raise_for_status()
-                file_b64 = response.json().get("content")
-                if file_b64:
-                    file_bytes = base64.b64decode(file_b64)
+                file_bytes, _, _, _ = client.get_file_content(path)
             except Exception:
                 pass
 
