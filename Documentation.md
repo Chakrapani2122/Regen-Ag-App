@@ -54,7 +54,7 @@ KSURA is a **Streamlit-based web application** designed to support regenerative 
 ```
 ┌─────────────────────────────────────────────────┐
 │         Streamlit Web Interface                 │
-│  (Browser-based, runs in localhost:8501)        │
+│  (Browser-based, runs in localhost)             │
 └──────────────────┬──────────────────────────────┘
                    │
                    ▼
@@ -76,9 +76,8 @@ KSURA is a **Streamlit-based web application** designed to support regenerative 
                    ▼
 ┌─────────────────────────────────────────────────┐
 │   GitHub Repository                             │
-│  (Chakrapani2122/Regen-Ag-Data)                │
-│  - Data files (CSV, TSV, XLSX, TXT, MD, DOCX)  │
-│  - Visualizations folder                       │
+│  - Data files (CSV, TSV, XLSX, TXT, MD, DOCX)   │
+│  - Visualizations folder                        │
 │  - visualizations.xml (metadata)                │
 └─────────────────────────────────────────────────┘
 ```
